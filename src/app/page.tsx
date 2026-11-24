@@ -2,8 +2,10 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import { toUiRole } from '@/adapters/domain.adapter';
-import type { BackendRoleName } from '@/contracts/api.types';
+import type { BackendMediaStage, BackendRoleName } from '@/contracts/api.types';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
+import { masterDataApi } from '@/features/master-data/api';
+import { mediaApi } from '@/features/media/api';
 import {
   apiClient,
   getStoredToken,
@@ -24,13 +26,13 @@ const TEST_FLOWS = [
     title:
       'Danh mục, Tìm kiếm quanh tôi (nearby) & Chi tiết công khai (zero-PII)',
     endpoints:
-      'GET /categories, GET /issues/nearby, GET /issues, GET /issues/:publicId',
+      'GET /categories, GET /departments, GET /issues/nearby, GET /issues, GET /issues/:publicId',
   },
   {
     id: 'Flow 2',
     stage: 'Giai đoạn 4, 5 & 7 (R01, R02)',
     title:
-      'Dân gửi 3 bước + Upload ảnh + AI gợi ý + "Tôi cũng gặp" + Phản ánh của tôi',
+      'Dân gửi 3 bước + Upload Cloudinary + AI gợi ý + "Tôi cũng gặp" + Phản ánh của tôi',
     endpoints:
       'POST /media/upload, POST /ai/classify-image, POST /issues, POST /issues/:publicId/me-too, GET /issues/mine',
   },
@@ -68,7 +70,11 @@ export default function TestHarnessHomePage() {
   const [output, setOutput] = useState<string>('Chưa thực hiện thao tác nào');
   const [currentUser, setCurrentUser] = useState<AuthUserDto | null>(null);
   const [phone, setPhone] = useState('0901000001');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadStage, setUploadStage] = useState<BackendMediaStage>('BEFORE');
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
   const hasToken = useSyncExternalStore(
     subscribeTokenChange,
     () => Boolean(getStoredToken()),
@@ -135,6 +141,21 @@ export default function TestHarnessHomePage() {
     authApi.logout();
     setCurrentUser(null);
     setOutput('Đã xóa token khỏi localStorage.');
+  }
+
+  async function handleUploadMedia(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedFile) {
+      setOutput('Vui lòng chọn file ảnh trước khi upload.');
+      return;
+    }
+    await runAction(async () => {
+      const res = await mediaApi.upload(selectedFile, uploadStage);
+      if (res.success) {
+        setUploadedUrl(res.data.url);
+      }
+      return res;
+    });
   }
 
   return (
@@ -266,11 +287,94 @@ export default function TestHarnessHomePage() {
             disabled={loading}
             className="rounded border px-3 py-1"
           >
-            Test RBAC STAFF-only (403 nếu là Dân/TNV)
+            Test RBAC STAFF-only
+          </button>
+        </form>
+      </section>
+
+      {/* Flow 1A & Flow 2 Bước 1: Master Data + Cloudinary Upload */}
+      <section className="mt-6 space-y-4 rounded border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="font-semibold">
+            Giai đoạn 4 — Master Data &amp; Upload Ảnh Cloudinary
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => runAction(() => masterDataApi.getCategories())}
+              disabled={loading}
+              className="rounded border px-3 py-1"
+            >
+              GET /categories
+            </button>
+            <button
+              type="button"
+              onClick={() => runAction(() => masterDataApi.getDepartments())}
+              disabled={loading}
+              className="rounded border px-3 py-1"
+            >
+              GET /departments (STAFF)
+            </button>
+          </div>
+        </div>
+
+        <form
+          onSubmit={handleUploadMedia}
+          className="flex flex-wrap items-center gap-2 border-t pt-3"
+        >
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+            className="text-xs"
+          />
+          <select
+            value={uploadStage}
+            onChange={(e) =>
+              setUploadStage(e.target.value as BackendMediaStage)
+            }
+            className="rounded border px-2 py-1"
+          >
+            <option value="BEFORE">BEFORE (cho phép chưa login)</option>
+            <option value="VERIFICATION">VERIFICATION (TNV / Cán bộ)</option>
+            <option value="AFTER">AFTER (chỉ Cán bộ)</option>
+          </select>
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+          >
+            POST /media/upload
           </button>
         </form>
 
-        <pre className="max-h-72 overflow-auto rounded bg-gray-100 p-3 text-xs">
+        {uploadedUrl && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="text-xs">
+              Cloudinary URL:{' '}
+              <a
+                href={uploadedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 underline"
+              >
+                {uploadedUrl}
+              </a>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={uploadedUrl}
+              alt="Cloudinary upload preview"
+              className="max-h-40 rounded border object-contain"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* Output console */}
+      <section className="mt-6 rounded border p-4">
+        <div className="font-semibold">API Response Output</div>
+        <pre className="mt-2 max-h-80 overflow-auto rounded bg-gray-100 p-3 text-xs">
           {output}
         </pre>
       </section>
