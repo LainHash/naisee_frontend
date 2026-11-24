@@ -1,27 +1,4 @@
-export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-export interface ApiSuccessResponse<T> {
-  success: true;
-  message?: string;
-  data: T;
-  meta?: PaginationMeta;
-}
-
-export interface ApiErrorResponse {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-}
-
-export type ApiEnvelope<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+import type { ApiEnvelope } from '@/contracts/api.types';
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
@@ -78,4 +55,3 @@ export const apiClient = {
     }),
   delete: <T>(path: string) => apiRequest<T>(path, { method: 'DELETE' }),
 };
-

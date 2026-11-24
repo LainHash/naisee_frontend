@@ -1,0 +1,73 @@
+/**
+ * Backend contract enums & envelope types mirroring naisee_backend/src/common/.
+ * Run `npm run sync:types` while naisee_backend is running to generate `openapi.d.ts`.
+ */
+
+export type BackendRoleName = 'CITIZEN' | 'STAFF' | 'VOLUNTEER' | 'ADMIN';
+
+export type BackendIssueStatus =
+  | 'PENDING_REVIEW'
+  | 'RECEIVED'
+  | 'VERIFYING'
+  | 'IN_PROGRESS'
+  | 'RESOLVED';
+
+export type BackendPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export type BackendCategoryCode =
+  | 'ROAD_SURFACE'
+  | 'STREET_LIGHT'
+  | 'WASTE'
+  | 'FLOODING'
+  | 'OTHER';
+
+export type BackendMediaStage = 'BEFORE' | 'VERIFICATION' | 'AFTER';
+
+export type BackendVerificationStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export type BackendTimelineAction =
+  | 'CREATED'
+  | 'ME_TOO_ADDED'
+  | 'MERGED'
+  | 'RECEIVED'
+  | 'ASSIGNED'
+  | 'VERIFICATION_REQUESTED'
+  | 'VERIFICATION_SUBMITTED'
+  | 'PROGRESS_NOTE'
+  | 'RESOLVED'
+  | 'REOPENED';
+
+export type BackendFeedbackReviewStatus =
+  | 'SUBMITTED'
+  | 'ACKNOWLEDGED'
+  | 'REOPENED';
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ApiSuccessResponse<T> {
+  success: true;
+  message?: string;
+  data: T;
+  meta?: PaginationMeta;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
+
+export type ApiEnvelope<T> = ApiSuccessResponse<T> | ApiErrorResponse;
+

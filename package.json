@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "sync:types": "npx -y openapi-typescript http://localhost:3001/docs/openapi.json -o src/contracts/openapi.d.ts"
   },
   "dependencies": {
     "next": "16.4.6",
