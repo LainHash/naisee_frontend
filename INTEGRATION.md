@@ -50,7 +50,8 @@ naisee_frontend/src/
 | Vai trò Cán bộ | `STAFF` | `'officer'` | `toUiRole` / `toBackendRole` |
 | Vai trò Dân / TNV | `CITIZEN`, `VOLUNTEER` | `'citizen'`, `'volunteer'` | `toUiRole` / `toBackendRole` |
 | Loại sự cố | `ROAD_SURFACE`, `STREET_LIGHT`, `WASTE`, `FLOODING`, `OTHER` | `'road'`, `'streetlight'`, `'waste'`, `'flooding'` | `toUiCategory` / `toBackendCategory` |
-| Trạng thái | `PENDING_REVIEW`, `RECEIVED`, `VERIFYING`, `IN_PROGRESS`, `RESOLVED` + `needsReopenReview` | `'new'`, `'verifying'`, `'in_progress'`, `'resolved'`, `'reopened'` | `toUiStatus(status, needsReopenReview)` |
+| Trạng thái | `PENDING_REVIEW`, `RECEIVED`, `VERIFYING`, `IN_PROGRESS`, `RESOLVED`, `REJECTED` + `needsReopenReview` | `'new'`, `'verifying'`, `'in_progress'`, `'resolved'`, `'reopened'`, `'rejected'` | `toUiStatus(status, needsReopenReview)` |
+| Kết quả xác minh | `STILL_EXISTS`, `ALREADY_RESOLVED`, `NOT_FOUND_OR_UNCLEAR` | `'still_exists'`, `'already_resolved'`, `'not_found_or_unclear'` | `toUiVerificationOutcome` / `toBackendVerificationOutcome` *(không gộp `not_found_or_unclear` thành tin sai)* |
 | Mức độ | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | `'low'`, `'medium'`, `'high'`, `'critical'` | `toUiSeverity` / `toBackendPriority` |
 | Định danh URL | `publicId` (UUID) & `code` (`HT-2026-001`) | `id` & `code` | Map `id: dto.publicId` |
 | Tọa độ & Địa chỉ | `latitude`, `longitude`, `addressText`, `ward` | `lat`, `lng`, `address`, `neighborhood` | Mapper theo `Issue` detail/list |
@@ -63,7 +64,7 @@ naisee_frontend/src/
 ## 4. Điểm thay thế ở Frontend UI Độc lập
 
 Khi tích hợp vào Frontend UI chính thức:
-1. **`auth-context.tsx`:** thay mock `PERSONAS` & `switchPersona` bằng `POST /api/v1/auth/demo-switch` (`0901000001`, `0901000002`, `0901000003`) và `toggleLargeTextMode` bằng `PATCH /api/v1/auth/me/preferences`.
+1. **`auth-context.tsx`:** thay mock `PERSONAS` & `switchPersona` bằng `POST /api/v1/auth/demo-switch` (`0901000001`, `0901000002`, `0901000003`) và `toggleLargeTextMode` bằng `PATCH /api/v1/auth/me/preferences`. Lưu ý luồng Người dân gửi phản ánh được phép upload ảnh (`BEFORE`), phân loại AI và check `nearby` **trước khi đăng nhập**, giữ bản nháp ở `localStorage` rồi mới xác thực khi gửi `POST /api/v1/issues`.
 2. **`incident-store.ts`:** thay dữ liệu tĩnh bằng các hàm trong `src/features/*/api.ts` + mapper trong `src/adapters/`.
 3. **Envelope chuẩn:** mọi response thành công có dạng `{ success: true, data, meta? }`; lỗi có dạng `{ success: false, error: { code, message, details? } }`.
 

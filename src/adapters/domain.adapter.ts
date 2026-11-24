@@ -3,11 +3,12 @@ import type {
   BackendIssueStatus,
   BackendPriority,
   BackendRoleName,
+  BackendVerificationOutcome,
 } from '@/contracts/api.types';
 
 /**
  * Type aliases matching the standalone UI (`example/NaiSee/cham-pho/src/types/incident.ts`)
- * so a standalone frontend agent can integrate backend DTOs without breaking UI components.
+ * plus UX alignment from docs/phan_tich_de_bai_2.md (`rejected`, 3-choice verification outcome).
  */
 export type UiUserRole = 'citizen' | 'volunteer' | 'officer' | 'admin';
 export type UiIncidentCategory = 'waste' | 'streetlight' | 'flooding' | 'road';
@@ -16,8 +17,13 @@ export type UiIncidentStatus =
   | 'verifying'
   | 'in_progress'
   | 'resolved'
-  | 'reopened';
+  | 'reopened'
+  | 'rejected';
 export type UiIncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type UiVerificationOutcome =
+  | 'still_exists'
+  | 'already_resolved'
+  | 'not_found_or_unclear';
 
 const ROLE_BE_TO_UI: Record<BackendRoleName, UiUserRole> = {
   CITIZEN: 'citizen',
@@ -62,6 +68,24 @@ const PRIORITY_UI_TO_BE: Record<UiIncidentSeverity, BackendPriority> = {
   critical: 'CRITICAL',
 };
 
+const OUTCOME_BE_TO_UI: Record<
+  BackendVerificationOutcome,
+  UiVerificationOutcome
+> = {
+  STILL_EXISTS: 'still_exists',
+  ALREADY_RESOLVED: 'already_resolved',
+  NOT_FOUND_OR_UNCLEAR: 'not_found_or_unclear',
+};
+
+const OUTCOME_UI_TO_BE: Record<
+  UiVerificationOutcome,
+  BackendVerificationOutcome
+> = {
+  still_exists: 'STILL_EXISTS',
+  already_resolved: 'ALREADY_RESOLVED',
+  not_found_or_unclear: 'NOT_FOUND_OR_UNCLEAR',
+};
+
 export function toUiRole(role: BackendRoleName): UiUserRole {
   return ROLE_BE_TO_UI[role];
 }
@@ -97,6 +121,8 @@ export function toUiStatus(
       return 'in_progress';
     case 'RESOLVED':
       return 'resolved';
+    case 'REJECTED':
+      return 'rejected';
   }
 }
 
@@ -110,3 +136,14 @@ export function toBackendPriority(
   return PRIORITY_UI_TO_BE[severity];
 }
 
+export function toUiVerificationOutcome(
+  outcome: BackendVerificationOutcome,
+): UiVerificationOutcome {
+  return OUTCOME_BE_TO_UI[outcome];
+}
+
+export function toBackendVerificationOutcome(
+  outcome: UiVerificationOutcome,
+): BackendVerificationOutcome {
+  return OUTCOME_UI_TO_BE[outcome];
+}

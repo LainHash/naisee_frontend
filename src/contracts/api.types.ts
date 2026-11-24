@@ -10,7 +10,8 @@ export type BackendIssueStatus =
   | 'RECEIVED'
   | 'VERIFYING'
   | 'IN_PROGRESS'
-  | 'RESOLVED';
+  | 'RESOLVED'
+  | 'REJECTED';
 
 export type BackendPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -29,6 +30,11 @@ export type BackendVerificationStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
+export type BackendVerificationOutcome =
+  | 'STILL_EXISTS'
+  | 'ALREADY_RESOLVED'
+  | 'NOT_FOUND_OR_UNCLEAR';
+
 export type BackendTimelineAction =
   | 'CREATED'
   | 'ME_TOO_ADDED'
@@ -39,7 +45,8 @@ export type BackendTimelineAction =
   | 'VERIFICATION_SUBMITTED'
   | 'PROGRESS_NOTE'
   | 'RESOLVED'
-  | 'REOPENED';
+  | 'REOPENED'
+  | 'REJECTED';
 
 export type BackendFeedbackReviewStatus =
   | 'SUBMITTED'
@@ -70,4 +77,3 @@ export interface ApiErrorResponse {
 }
 
 export type ApiEnvelope<T> = ApiSuccessResponse<T> | ApiErrorResponse;
-
