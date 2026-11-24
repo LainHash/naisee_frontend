@@ -4,6 +4,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 const TOKEN_STORAGE_KEY = 'naisee_test_token';
+const TOKEN_EVENT_NAME = 'naisee-token-change';
 
 export function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -17,6 +18,17 @@ export function setStoredToken(token: string | null): void {
   } else {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
+  window.dispatchEvent(new Event(TOKEN_EVENT_NAME));
+}
+
+export function subscribeTokenChange(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', callback);
+  window.addEventListener(TOKEN_EVENT_NAME, callback);
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener(TOKEN_EVENT_NAME, callback);
+  };
 }
 
 export async function apiRequest<T>(

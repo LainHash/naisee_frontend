@@ -1,42 +1,52 @@
 'use client';
 
-import { useState } from 'react';
-import { apiClient, getStoredToken } from '@/shared/api-client';
+import { useState, useSyncExternalStore } from 'react';
+import { toUiRole } from '@/adapters/domain.adapter';
+import type { BackendRoleName } from '@/contracts/api.types';
+import { authApi, type AuthUserDto } from '@/features/auth/api';
+import {
+  apiClient,
+  getStoredToken,
+  subscribeTokenChange,
+} from '@/shared/api-client';
 
-/**
- * Danh sách các flow thực hành sẽ được bổ sung dần theo từng giai đoạn triển khai Backend.
- * Mục tiêu: chỉ dùng form/button tối giản để test API contract & 5 luồng E2E (UI đẹp đã có sẵn riêng).
- */
 const TEST_FLOWS = [
   {
     id: 'Flow 0',
     stage: 'Giai đoạn 0 & 3',
     title: 'Healthcheck & Demo Role Switcher (CITIZEN / STAFF / VOLUNTEER)',
-    endpoints: 'GET /health, POST /auth/demo-switch, GET /auth/me, PATCH /auth/me/preferences',
+    endpoints:
+      'GET /health, POST /auth/demo-switch, POST /auth/login, GET /auth/me, PATCH /auth/me/preferences, GET /roles, GET /auth/staff-check',
   },
   {
     id: 'Flow 1',
     stage: 'Giai đoạn 4 & 6 (R03)',
-    title: 'Danh mục, Tìm kiếm quanh tôi (nearby) & Chi tiết công khai (zero-PII)',
-    endpoints: 'GET /categories, GET /issues/nearby, GET /issues, GET /issues/:publicId',
+    title:
+      'Danh mục, Tìm kiếm quanh tôi (nearby) & Chi tiết công khai (zero-PII)',
+    endpoints:
+      'GET /categories, GET /issues/nearby, GET /issues, GET /issues/:publicId',
   },
   {
     id: 'Flow 2',
     stage: 'Giai đoạn 4, 5 & 7 (R01, R02)',
-    title: 'Dân gửi 3 bước + Upload ảnh + AI gợi ý + "Tôi cũng gặp" + Phản ánh của tôi',
-    endpoints: 'POST /media/upload, POST /ai/classify-image, POST /issues, POST /issues/:publicId/me-too, GET /issues/mine',
+    title:
+      'Dân gửi 3 bước + Upload ảnh + AI gợi ý + "Tôi cũng gặp" + Phản ánh của tôi',
+    endpoints:
+      'POST /media/upload, POST /ai/classify-image, POST /issues, POST /issues/:publicId/me-too, GET /issues/mine',
   },
   {
     id: 'Flow 3',
     stage: 'Giai đoạn 8 (R04)',
-    title: 'Cán bộ điều phối: Triage, Gộp trùng (Merge) & Giao bộ phận (Assign)',
-    endpoints: 'GET /staff/issues, PATCH .../triage, POST .../merge, PATCH .../assign',
+    title: 'Cán bộ điều phối: Triage, Reject, Gộp trùng (Merge) & Giao bộ phận',
+    endpoints:
+      'GET /staff/issues, PATCH .../triage, PATCH .../reject, POST .../merge, PATCH .../assign',
   },
   {
     id: 'Flow 4',
     stage: 'Giai đoạn 9',
     title: 'Thanh niên tình nguyện nhận & nộp kết quả xác minh hiện trường',
-    endpoints: 'POST /staff/issues/:publicId/verifications, GET /volunteer/verifications, POST .../claim, POST .../submit',
+    endpoints:
+      'POST /staff/issues/:publicId/verifications, GET /volunteer/verifications, POST .../claim, POST .../submit',
   },
   {
     id: 'Flow 5',
@@ -47,68 +57,225 @@ const TEST_FLOWS = [
   {
     id: 'Flow 6',
     stage: 'Giai đoạn 11 (R06)',
-    title: 'Dân đánh giá hài lòng / chưa hài lòng & Cán bộ mở lại hồ sơ (REOPENED)',
-    endpoints: 'POST /issues/:publicId/feedback, PATCH /staff/feedbacks/:publicId/review',
+    title:
+      'Dân đánh giá hài lòng / chưa hài lòng & Cán bộ mở lại hồ sơ (REOPENED)',
+    endpoints:
+      'POST /issues/:publicId/feedback, PATCH /staff/feedbacks/:publicId/review',
   },
 ] as const;
 
 export default function TestHarnessHomePage() {
-  const [result, setResult] = useState<string>('Chưa kiểm tra');
+  const [output, setOutput] = useState<string>('Chưa thực hiện thao tác nào');
+  const [currentUser, setCurrentUser] = useState<AuthUserDto | null>(null);
+  const [phone, setPhone] = useState('0901000001');
   const [loading, setLoading] = useState(false);
+  const hasToken = useSyncExternalStore(
+    subscribeTokenChange,
+    () => Boolean(getStoredToken()),
+    () => false,
+  );
 
-  async function checkHealth() {
+  async function runAction(fn: () => Promise<unknown>) {
     setLoading(true);
     try {
-      const res = await apiClient.get<{ status: string; database: string }>(
-        '/health',
-      );
-      setResult(JSON.stringify(res, null, 2));
+      const res = await fn();
+      setOutput(JSON.stringify(res, null, 2));
     } catch (err) {
-      setResult(err instanceof Error ? err.message : String(err));
+      setOutput(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
   }
 
-  const hasToken = typeof window !== 'undefined' && Boolean(getStoredToken());
+  async function handleDemoSwitch(
+    role: Extract<BackendRoleName, 'CITIZEN' | 'STAFF' | 'VOLUNTEER'>,
+  ) {
+    await runAction(async () => {
+      const res = await authApi.demoSwitch(role);
+      if (res.success) {
+        setCurrentUser(res.data.user);
+      }
+      return res;
+    });
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    await runAction(async () => {
+      const res = await authApi.login(phone);
+      if (res.success) {
+        setCurrentUser(res.data.user);
+      }
+      return res;
+    });
+  }
+
+  async function handleFetchMe() {
+    await runAction(async () => {
+      const res = await authApi.me();
+      if (res.success) {
+        setCurrentUser(res.data);
+      }
+      return res;
+    });
+  }
+
+  async function handleToggleLargeText() {
+    const next = !(currentUser?.largeTextMode ?? false);
+    await runAction(async () => {
+      const res = await authApi.updatePreferences(next);
+      if (res.success) {
+        setCurrentUser(res.data);
+      }
+      return res;
+    });
+  }
+
+  function handleLogout() {
+    authApi.logout();
+    setCurrentUser(null);
+    setOutput('Đã xóa token khỏi localStorage.');
+  }
 
   return (
-    <main className="mx-auto max-w-4xl p-6 font-sans text-sm">
-      <h1 className="text-xl font-bold">NaiSee API Test Harness</h1>
+    <main
+      className={`mx-auto max-w-4xl p-6 font-sans ${
+        currentUser?.largeTextMode ? 'text-base' : 'text-sm'
+      }`}
+    >
+      <h1 className="text-xl font-bold">
+        NaiSee API Test Harness &amp; Integration Kit
+      </h1>
       <p className="mt-1 text-gray-600">
-        Giao diện tối giản dùng để kiểm thử API backend theo từng giai đoạn (không
-        đầu tư styling).
+        Giao diện tối giản dùng để kiểm chứng API backend &amp; adapter theo từng
+        giai đoạn (xem <code>INTEGRATION.md</code>).
       </p>
 
-      {/* Flow 0: Healthcheck */}
-      <section className="mt-6 rounded border p-4">
-        <div className="flex items-center justify-between gap-4">
+      {/* Flow 0: Healthcheck + Auth + Demo Role Switcher + RBAC */}
+      <section className="mt-6 space-y-4 rounded border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="font-semibold">
-              Flow 0 (Giai đoạn 0) — Kiểm tra kết nối Backend & PostgreSQL
+              Flow 0 (Giai đoạn 0 &amp; 3) — Healthcheck, Auth &amp; RBAC
             </div>
             <div className="text-xs text-gray-500">
-              API Base:{' '}
+              API:{' '}
               {process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1'}{' '}
               | Token: {hasToken ? 'Đã lưu' : 'Chưa có'}
+              {currentUser &&
+                ` | User: ${currentUser.fullName} (BE: ${currentUser.role} / UI: ${toUiRole(currentUser.role)})`}
             </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => runAction(() => apiClient.get('/health'))}
+              disabled={loading}
+              className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+            >
+              Test /health
+            </button>
+            <button
+              type="button"
+              onClick={() => runAction(() => authApi.getRoles())}
+              disabled={loading}
+              className="rounded border px-3 py-1 disabled:opacity-50"
+            >
+              GET /roles
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <span className="font-medium">Demo Switch:</span>
           <button
             type="button"
-            onClick={checkHealth}
+            onClick={() => handleDemoSwitch('CITIZEN')}
             disabled={loading}
-            className="rounded bg-black px-3 py-1.5 text-white disabled:opacity-50"
+            className="rounded border px-2.5 py-1 hover:bg-gray-100"
           >
-            {loading ? 'Đang kiểm tra...' : 'Test /health'}
+            CITIZEN (0901000001)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemoSwitch('STAFF')}
+            disabled={loading}
+            className="rounded border px-2.5 py-1 hover:bg-gray-100"
+          >
+            STAFF (0901000002)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDemoSwitch('VOLUNTEER')}
+            disabled={loading}
+            className="rounded border px-2.5 py-1 hover:bg-gray-100"
+          >
+            VOLUNTEER (0901000003)
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loading}
+            className="rounded border px-2.5 py-1 text-red-600"
+          >
+            Đăng xuất
           </button>
         </div>
 
-        <pre className="mt-3 overflow-auto rounded bg-gray-100 p-3 text-xs">
-          {result}
+        <form
+          onSubmit={handleLogin}
+          className="flex flex-wrap items-center gap-2 border-t pt-3"
+        >
+          <label className="font-medium" htmlFor="phone-input">
+            SĐT Login:
+          </label>
+          <input
+            id="phone-input"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="rounded border px-2 py-1"
+            placeholder="0901000001"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded border px-3 py-1"
+          >
+            POST /auth/login
+          </button>
+          <button
+            type="button"
+            onClick={handleFetchMe}
+            disabled={loading}
+            className="rounded border px-3 py-1"
+          >
+            GET /auth/me
+          </button>
+          <label className="ml-2 flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={currentUser?.largeTextMode ?? false}
+              onChange={handleToggleLargeText}
+              disabled={loading || !hasToken}
+            />
+            <span>Chế độ chữ lớn (largeTextMode)</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => runAction(() => authApi.staffCheck())}
+            disabled={loading}
+            className="rounded border px-3 py-1"
+          >
+            Test RBAC STAFF-only (403 nếu là Dân/TNV)
+          </button>
+        </form>
+
+        <pre className="max-h-72 overflow-auto rounded bg-gray-100 p-3 text-xs">
+          {output}
         </pre>
       </section>
 
-      {/* Chú thích bản đồ các Flow thực hành trên Test Harness */}
+      {/* Bản đồ các Flow thực hành */}
       <section className="mt-6 rounded border p-4">
         <h2 className="font-semibold">
           Bản đồ các Flow thực hành trên Frontend Test Harness
