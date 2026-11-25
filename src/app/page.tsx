@@ -13,7 +13,6 @@ import type {
   BackendIssueStatus,
   BackendMediaStage,
   BackendPriority,
-  BackendRoleName,
   BackendVerificationOutcome,
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';

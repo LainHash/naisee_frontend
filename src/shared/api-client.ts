@@ -88,7 +88,6 @@ export async function apiRequest<T>(
   if (
     response.status === 401 &&
     !path.startsWith('/auth/login') &&
-    !path.startsWith('/auth/demo-switch') &&
     token
   ) {
     setStoredToken(null);
