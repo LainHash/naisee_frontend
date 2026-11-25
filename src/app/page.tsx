@@ -38,9 +38,9 @@ const TEST_FLOWS = [
   {
     id: 'Flow 0',
     stage: 'Giai đoạn 0 & 3',
-    title: 'Healthcheck & Demo Role Switcher (CITIZEN / STAFF / VOLUNTEER)',
+    title: 'Healthcheck & Đăng nhập thuần (POST /auth/login)',
     endpoints:
-      'GET /health, POST /auth/demo-switch, POST /auth/login, GET /auth/me, PATCH /auth/me/preferences, GET /roles, GET /auth/staff-check',
+      'GET /health, POST /auth/login, GET /auth/me, PATCH /auth/me/preferences, GET /roles, GET /auth/staff-check',
   },
   {
     id: 'Flow 1',
@@ -170,18 +170,6 @@ export default function TestHarnessHomePage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleDemoSwitch(
-    role: Extract<BackendRoleName, 'CITIZEN' | 'STAFF' | 'VOLUNTEER'>,
-  ) {
-    await runAction(async () => {
-      const res = await authApi.demoSwitch(role);
-      if (res.success) {
-        setCurrentUser(res.data.user);
-      }
-      return res;
-    });
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -360,42 +348,6 @@ export default function TestHarnessHomePage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-          <span className="font-medium">Demo Switch:</span>
-          <button
-            type="button"
-            onClick={() => handleDemoSwitch('CITIZEN')}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
-          >
-            CITIZEN (0901000001)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDemoSwitch('STAFF')}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
-          >
-            STAFF (0901000002)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDemoSwitch('VOLUNTEER')}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
-          >
-            VOLUNTEER (0901000003)
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 text-red-600"
-          >
-            Đăng xuất
-          </button>
-        </div>
-
         <form
           onSubmit={handleLogin}
           className="flex flex-wrap items-center gap-2 border-t pt-3"
@@ -410,6 +362,14 @@ export default function TestHarnessHomePage() {
             className="rounded border px-2 py-1"
             placeholder="0901000001"
           />
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loading}
+            className="rounded border px-2.5 py-1 text-red-600"
+          >
+            Đăng xuất
+          </button>
           <button
             type="submit"
             disabled={loading}

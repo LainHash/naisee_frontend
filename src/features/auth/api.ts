@@ -44,18 +44,6 @@ export const authApi = {
     return res;
   },
 
-  async demoSwitch(
-    role: Extract<BackendRoleName, 'CITIZEN' | 'STAFF' | 'VOLUNTEER'>,
-  ): Promise<ApiEnvelope<AuthResponseDto>> {
-    const res = await apiClient.post<AuthResponseDto>('/auth/demo-switch', {
-      role,
-    });
-    if (res.success) {
-      setStoredToken(res.data.accessToken);
-    }
-    return res;
-  },
-
   me(): Promise<ApiEnvelope<AuthUserDto>> {
     return apiClient.get<AuthUserDto>('/auth/me');
   },
