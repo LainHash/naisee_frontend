@@ -69,6 +69,20 @@ export interface MergeIssuesInput {
   note?: string;
 }
 
+export interface UpdateIssueProgressInput {
+  stage: Extract<
+    BackendWorkflowStage,
+    'work_accepted' | 'resolution_submitted' | 'resolution_review'
+  >;
+  note?: string;
+  imageUrls?: string[];
+}
+
+export interface ResolveIssueInput {
+  resolutionNote: string;
+  imageUrls?: string[];
+}
+
 function toQueryString(params: Record<string, unknown>): string {
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -144,6 +158,26 @@ export const staffApi = {
   ): Promise<ApiEnvelope<StaffIssueDetailDto>> {
     return apiClient.post<StaffIssueDetailDto>(
       `/staff/issues/${encodeURIComponent(publicIdOrCode)}/merge`,
+      input,
+    );
+  },
+
+  updateProgress(
+    publicIdOrCode: string,
+    input: UpdateIssueProgressInput,
+  ): Promise<ApiEnvelope<StaffIssueDetailDto>> {
+    return apiClient.patch<StaffIssueDetailDto>(
+      `/staff/issues/${encodeURIComponent(publicIdOrCode)}/progress`,
+      input,
+    );
+  },
+
+  resolve(
+    publicIdOrCode: string,
+    input: ResolveIssueInput,
+  ): Promise<ApiEnvelope<StaffIssueDetailDto>> {
+    return apiClient.patch<StaffIssueDetailDto>(
+      `/staff/issues/${encodeURIComponent(publicIdOrCode)}/resolve`,
       input,
     );
   },

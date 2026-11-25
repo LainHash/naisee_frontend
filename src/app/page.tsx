@@ -14,13 +14,20 @@ import type {
   BackendMediaStage,
   BackendPriority,
   BackendRoleName,
+  BackendVerificationOutcome,
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
+import { dashboardApi } from '@/features/dashboard/api';
+import { feedbackApi } from '@/features/feedback/api';
 import { issuesApi, type MyIssueItemDto } from '@/features/issues/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
 import { staffApi, type StaffIssueItemDto } from '@/features/staff/api';
+import {
+  verificationsApi,
+  type VerificationTaskDto,
+} from '@/features/verifications/api';
 import {
   apiClient,
   getStoredToken,
@@ -122,6 +129,29 @@ export default function TestHarnessHomePage() {
   const [staffDeptCode, setStaffDeptCode] = useState('ROAD_MAINTENANCE');
   const [staffSlaHours, setStaffSlaHours] = useState('48');
   const [staffMergeSources, setStaffMergeSources] = useState('');
+  const [verifyInstruction, setVerifyInstruction] = useState(
+    'Kiểm tra thực tế tại hiện trường và chụp ảnh đối chiếu',
+  );
+  const [volunteerTasks, setVolunteerTasks] = useState<VerificationTaskDto[]>(
+    [],
+  );
+  const [verifyTargetId, setVerifyTargetId] = useState('');
+  const [verifyOutcome, setVerifyOutcome] =
+    useState<BackendVerificationOutcome>('STILL_EXISTS');
+  const [verifyNote, setVerifyNote] = useState(
+    'Đã có mặt tại hiện trường, ghi nhận đúng thực tế phản ánh',
+  );
+  const [verifyImageUrl, setVerifyImageUrl] = useState(
+    'https://res.cloudinary.com/demo/image/upload/v1/verify-field.jpg',
+  );
+  const [resolveNote, setResolveNote] = useState(
+    'Đơn vị chuyên trách đã hoàn thành khắc phục sự cố và vệ sinh sạch khu vực.',
+  );
+  const [resolveAfterUrl, setResolveAfterUrl] = useState('');
+  const [feedbackSatisfied, setFeedbackSatisfied] = useState(false);
+  const [feedbackReason, setFeedbackReason] = useState(
+    'Sau xử lý vẫn còn đọng nước khi mưa lớn',
+  );
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -1018,6 +1048,275 @@ export default function TestHarnessHomePage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Giai đoạn 9: Flow 4 — Thanh niên Tình nguyện Xác minh Thực địa */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 9 — Flow 4: Thanh niên Tình nguyện Xác minh Thực địa
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={staffTargetId}
+            onChange={(e) => setStaffTargetId(e.target.value)}
+            placeholder="Mã/UUID hồ sơ"
+            className="w-44 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={verifyInstruction}
+            onChange={(e) => setVerifyInstruction(e.target.value)}
+            placeholder="Hướng dẫn xác minh gửi TNV"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(async () => {
+                const res = await verificationsApi.requestForIssue(
+                  staffTargetId,
+                  { instruction: verifyInstruction, slaHours: 24 },
+                );
+                if (res.success) {
+                  setVerifyTargetId(res.data.publicId);
+                }
+                return res;
+              })
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            STAFF: POST /verifications
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(async () => {
+                const res = await verificationsApi.listVolunteerTasks();
+                if (res.success) {
+                  setVolunteerTasks(res.data);
+                  if (!verifyTargetId && res.data[0]) {
+                    setVerifyTargetId(res.data[0].publicId);
+                  }
+                }
+                return res;
+              })
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            VOLUNTEER: GET /volunteer/verifications
+          </button>
+          <input
+            value={verifyTargetId}
+            onChange={(e) => setVerifyTargetId(e.target.value)}
+            placeholder="Verification publicId hoặc Issue code"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() => verificationsApi.claimTask(verifyTargetId))
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            POST /claim (Nhận việc)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={verifyOutcome}
+            onChange={(e) =>
+              setVerifyOutcome(e.target.value as BackendVerificationOutcome)
+            }
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="STILL_EXISTS">STILL_EXISTS</option>
+            <option value="ALREADY_RESOLVED">ALREADY_RESOLVED</option>
+            <option value="NOT_FOUND_OR_UNCLEAR">NOT_FOUND_OR_UNCLEAR</option>
+          </select>
+          <input
+            value={verifyNote}
+            onChange={(e) => setVerifyNote(e.target.value)}
+            placeholder="Ghi chú xác minh"
+            className="min-w-52 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={verifyImageUrl}
+            onChange={(e) => setVerifyImageUrl(e.target.value)}
+            placeholder="URL ảnh VERIFICATION"
+            className="min-w-52 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                verificationsApi.submitTask(verifyTargetId, {
+                  outcome: verifyOutcome,
+                  verifiedLatitude: 10.9512,
+                  verifiedLongitude: 106.8245,
+                  resultNote: verifyNote,
+                  imageUrls: verifyImageUrl.trim() ? [verifyImageUrl.trim()] : [],
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            POST /submit (Nộp xác minh)
+          </button>
+        </div>
+
+        {volunteerTasks.length > 0 && (
+          <div className="space-y-1 border-t pt-2 text-xs">
+            <div className="font-medium">
+              Nhiệm vụ TNV ({volunteerTasks.length}):
+            </div>
+            {volunteerTasks.slice(0, 6).map((task) => (
+              <div
+                key={task.publicId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded bg-gray-50 p-2"
+              >
+                <div>
+                  <strong>{task.issue.code}</strong> — {task.issue.title} |{' '}
+                  {task.status} | {task.outcome ?? 'Chưa nộp'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVerifyTargetId(task.publicId)}
+                  className="rounded border px-2 py-0.5 text-[11px]"
+                >
+                  Chọn
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Giai đoạn 10 & 11: Flow 5 & Flow 6 — Nghiệm thu AFTER, Dashboard & Feedback / Reopen */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 10 &amp; 11 — Flow 5 &amp; Flow 6: Nghiệm thu AFTER, Dashboard
+          &amp; Đánh giá / Mở lại
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={resolveNote}
+            onChange={(e) => setResolveNote(e.target.value)}
+            placeholder="Nội dung kết quả nghiệm thu"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={resolveAfterUrl}
+            onChange={(e) => setResolveAfterUrl(e.target.value)}
+            placeholder="URL ảnh AFTER (để trống để test lỗi 400)"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.updateProgress(staffTargetId, {
+                  stage: 'resolution_submitted',
+                  note: resolveNote,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /progress
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.resolve(staffTargetId, {
+                  resolutionNote: resolveNote,
+                  imageUrls: resolveAfterUrl.trim()
+                    ? [resolveAfterUrl.trim()]
+                    : [],
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            PATCH /resolve (R05)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction(() => dashboardApi.getStaffDashboard())}
+            className="rounded border px-3 py-1 text-xs"
+          >
+            GET /staff/dashboard
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction(() => dashboardApi.getPublicDashboard())}
+            className="rounded border px-3 py-1 text-xs"
+          >
+            GET /dashboard/public
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={feedbackSatisfied}
+              onChange={(e) => setFeedbackSatisfied(e.target.checked)}
+            />
+            <span>Hài lòng (isSatisfied)</span>
+          </label>
+          <input
+            value={feedbackReason}
+            onChange={(e) => setFeedbackReason(e.target.value)}
+            placeholder="Lý do / nhận xét của người dân"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                feedbackApi.submit(staffTargetId, {
+                  isSatisfied: feedbackSatisfied,
+                  rating: feedbackSatisfied ? 5 : 2,
+                  reason: feedbackReason,
+                }),
+              )
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            CITIZEN: POST /feedback (R06)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                feedbackApi.review(staffTargetId, {
+                  reviewStatus: 'REOPENED',
+                  reviewNote: 'Mở lại để kiểm tra bổ sung',
+                  slaHours: 24,
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            STAFF: PATCH /review (REOPENED)
+          </button>
+        </div>
       </section>
 
       {/* Output console */}

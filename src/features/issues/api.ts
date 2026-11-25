@@ -6,6 +6,8 @@ import type {
   BackendPriority,
   BackendRoleName,
   BackendTimelineAction,
+  BackendVerificationOutcome,
+  BackendVerificationStatus,
   BackendWorkflowStage,
 } from '@/contracts/api.types';
 import { apiClient } from '@/shared/api-client';
@@ -96,8 +98,10 @@ export interface PublicFeedbackItemDto {
   publicId: string;
   isSatisfied: boolean;
   rating: number | null;
+  reason: string | null;
   comment: string | null;
   reviewStatus: BackendFeedbackReviewStatus;
+  reviewNote: string | null;
   createdAt: string;
 }
 
@@ -109,6 +113,21 @@ export interface FeedbackSummaryDto {
   items: PublicFeedbackItemDto[];
 }
 
+export interface IssueVerificationSummaryDto {
+  publicId: string;
+  status: BackendVerificationStatus;
+  instruction: string | null;
+  dueAt: string | null;
+  outcome: BackendVerificationOutcome | null;
+  isIssueConfirmed: boolean | null;
+  verifiedLatitude: number | null;
+  verifiedLongitude: number | null;
+  safetyRiskNote: string | null;
+  resultNote: string | null;
+  completedAt: string | null;
+  volunteerLabel: string | null;
+}
+
 export interface PublicIssueDetailDto extends PublicIssueSummaryDto {
   intakeNote: string | null;
   resolutionNote: string | null;
@@ -117,6 +136,7 @@ export interface PublicIssueDetailDto extends PublicIssueSummaryDto {
   aiConfidence: number | null;
   media: IssueMediaItemDto[];
   timeline: IssueTimelineItemDto[];
+  latestVerification: IssueVerificationSummaryDto | null;
   feedbackSummary: FeedbackSummaryDto;
 }
 

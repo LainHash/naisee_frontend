@@ -430,6 +430,193 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staff/issues/{publicId}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cập nhật tiến độ xử lý của đơn vị chuyên trách (work_accepted, resolution_submitted, resolution_review) */
+        patch: operations["StaffIssuesController_updateProgress"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Nghiệm thu hoàn thành sự cố (bắt buộc tối thiểu 1 ảnh AFTER, chuyển RESOLVED / completed) */
+        patch: operations["StaffIssuesController_resolveIssue"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cán bộ tạo yêu cầu Tình nguyện viên xác minh thực địa (Issue -> VERIFYING / verification_requested) */
+        post: operations["StaffVerificationsController_requestVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/volunteer/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Danh sách nhiệm vụ xác minh cho Tình nguyện viên (lọc status=OPEN hoặc mine=true) */
+        get: operations["VolunteerVerificationsController_findList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/volunteer/verifications/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chi tiết một nhiệm vụ xác minh (theo verification publicId hoặc issue code) */
+        get: operations["VolunteerVerificationsController_findDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/volunteer/verifications/{publicId}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tình nguyện viên nhận nhiệm vụ xác minh (atomic update tránh nhận trùng) */
+        post: operations["VolunteerVerificationsController_claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/volunteer/verifications/{publicId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tình nguyện viên nộp kết quả xác minh thực địa (STILL_EXISTS | ALREADY_RESOLVED | NOT_FOUND_OR_UNCLEAR) */
+        post: operations["VolunteerVerificationsController_submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/issues/{publicId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Người dân đánh giá hài lòng hoặc yêu cầu mở lại hồ sơ đã RESOLVED (nếu isSatisfied=false bật needsReopenReview) */
+        post: operations["FeedbackController_submitFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/feedbacks/{publicId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cán bộ xử lý đánh giá (ACKNOWLEDGED hoặc REOPENED theo feedback publicId hoặc issue publicId/code) */
+        patch: operations["FeedbackController_reviewFeedback"];
+        trace?: never;
+    };
+    "/api/v1/staff/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Thống kê điều hành toàn phường cho Cán bộ (KPI, SLA, danh mục, khu vực) */
+        get: operations["DashboardController_getStaffDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Số liệu tổng hợp công khai phục vụ Cổng minh bạch (Zero-PII) */
+        get: operations["DashboardController_getPublicDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -600,13 +787,33 @@ export interface components {
             /** Format: date-time */
             timestamp: string;
         };
+        IssueVerificationSummaryDto: {
+            publicId: string;
+            /** @enum {string} */
+            status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            instruction: string | null;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @enum {string|null} */
+            outcome: "STILL_EXISTS" | "ALREADY_RESOLVED" | "NOT_FOUND_OR_UNCLEAR" | null;
+            isIssueConfirmed: boolean | null;
+            verifiedLatitude: number | null;
+            verifiedLongitude: number | null;
+            safetyRiskNote: string | null;
+            resultNote: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            volunteerLabel: string | null;
+        };
         PublicFeedbackItemDto: {
             publicId: string;
             isSatisfied: boolean;
             rating: number | null;
+            reason: string | null;
             comment: string | null;
             /** @enum {string} */
             reviewStatus: "SUBMITTED" | "ACKNOWLEDGED" | "REOPENED";
+            reviewNote: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -625,6 +832,7 @@ export interface components {
             aiConfidence: number | null;
             media: components["schemas"]["IssueMediaItemDto"][];
             timeline: components["schemas"]["IssueTimelineItemDto"][];
+            latestVerification: components["schemas"]["IssueVerificationSummaryDto"] | null;
             feedbackSummary: components["schemas"]["FeedbackSummaryDto"];
             publicId: string;
             code: string;
@@ -718,6 +926,7 @@ export interface components {
             aiConfidence: number | null;
             media: components["schemas"]["IssueMediaItemDto"][];
             timeline: components["schemas"]["IssueTimelineItemDto"][];
+            latestVerification: components["schemas"]["IssueVerificationSummaryDto"] | null;
             feedbackSummary: components["schemas"]["FeedbackSummaryDto"];
             publicId: string;
             code: string;
@@ -819,6 +1028,159 @@ export interface components {
             sourceIssuePublicIds: string[];
             /** @description Ghi chú lý do gộp trùng */
             note?: string;
+        };
+        UpdateIssueProgressDto: {
+            /**
+             * @description Bước tiến độ xử lý mới (work_accepted, resolution_submitted, resolution_review)
+             * @enum {string}
+             */
+            stage: "work_accepted" | "resolution_submitted" | "resolution_review";
+            /** @description Ghi chú cập nhật tiến độ thi công */
+            note?: string;
+            /** @description Ảnh sau xử lý đính kèm (nếu đơn vị thi công gửi nghiệm thu) */
+            imageUrls?: string[];
+        };
+        ResolveIssueDto: {
+            /** @description Nội dung kết quả xử lý chính thức gửi tới người dân */
+            resolutionNote: string;
+            /** @description Danh sách URL ảnh SAU xử lý (AFTER) */
+            imageUrls?: string[];
+        };
+        CreateVerificationDto: {
+            /** @description Hướng dẫn kiểm tra hiện trường gửi Tình nguyện viên */
+            instruction?: string;
+            /**
+             * Format: date-time
+             * @description Hạn hoàn thành xác minh (ISO datetime)
+             */
+            dueAt?: string;
+            /** @description Số giờ SLA xác minh tính từ hiện tại (mặc định 24h nếu không truyền dueAt) */
+            slaHours?: number;
+        };
+        VerificationIssueSummaryDto: {
+            publicId: string;
+            code: string;
+            title: string;
+            description: string | null;
+            /** @enum {string} */
+            status: "PENDING_REVIEW" | "RECEIVED" | "VERIFYING" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
+            /** @enum {string} */
+            stage: "unassigned" | "received" | "needs_information" | "not_accepted" | "verification_requested" | "volunteer_assigned" | "verification_submitted" | "department_assigned" | "work_accepted" | "resolution_submitted" | "resolution_review" | "completed" | "reopened";
+            /** @enum {string} */
+            priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            latitude: number;
+            longitude: number;
+            addressText: string;
+            ward: string;
+            thumbnailUrl: string | null;
+            reportCount: number;
+            /** Format: date-time */
+            dueAt: string | null;
+            isOverdue: boolean;
+            category: {
+                publicId: string;
+                code: string;
+                name: string;
+                icon: string | null;
+            };
+            media: components["schemas"]["IssueMediaItemDto"][];
+        };
+        VerificationTaskDto: {
+            publicId: string;
+            /** @enum {string} */
+            status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            instruction: string | null;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @enum {string|null} */
+            outcome: "STILL_EXISTS" | "ALREADY_RESOLVED" | "NOT_FOUND_OR_UNCLEAR" | null;
+            isIssueConfirmed: boolean | null;
+            verifiedLatitude: number | null;
+            verifiedLongitude: number | null;
+            safetyRiskNote: string | null;
+            resultNote: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            claimedByMe: boolean;
+            volunteerPublicId: string | null;
+            volunteerName: string | null;
+            media: components["schemas"]["IssueMediaItemDto"][];
+            issue: components["schemas"]["VerificationIssueSummaryDto"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SubmitVerificationDto: {
+            /**
+             * @description Kết quả xác minh thực địa (3 trạng thái chuẩn)
+             * @enum {string}
+             */
+            outcome: "STILL_EXISTS" | "ALREADY_RESOLVED" | "NOT_FOUND_OR_UNCLEAR";
+            /** @description Vĩ độ check-in GPS tại hiện trường */
+            verifiedLatitude?: number;
+            /** @description Kinh độ check-in GPS tại hiện trường */
+            verifiedLongitude?: number;
+            /** @description Ghi chú rủi ro an toàn tại hiện trường */
+            safetyRiskNote?: string;
+            /** @description Ghi chú kết quả quan sát thực tế của Tình nguyện viên */
+            resultNote?: string;
+            /** @description Danh sách URL ảnh chụp thực địa (Cloudinary stage=VERIFICATION) */
+            imageUrls?: string[];
+        };
+        CreateFeedbackDto: {
+            /** @description Người dân đánh giá hài lòng (true) hay chưa hài lòng (false) */
+            isSatisfied: boolean;
+            /** @description Điểm đánh giá 1-5 sao (tùy chọn) */
+            rating?: number;
+            /** @description Lý do nếu chưa hài lòng hoặc yêu cầu mở lại */
+            reason?: string;
+            /** @description Nhận xét thêm của người dân */
+            comment?: string;
+        };
+        ReviewFeedbackDto: {
+            /**
+             * @description Quyết định của cán bộ: ACKNOWLEDGED (ghi nhận) hoặc REOPENED (mở lại hồ sơ)
+             * @enum {string}
+             */
+            reviewStatus: "ACKNOWLEDGED" | "REOPENED";
+            /** @description Ghi chú xử lý phản hồi của cán bộ */
+            reviewNote?: string;
+            /** @description Nếu mở lại và cần phân công lại bộ phận khác (đưa về RECEIVED/received) */
+            reassignToDepartment?: boolean;
+            /**
+             * Format: date-time
+             * @description Hạn SLA mới khi mở lại hồ sơ
+             */
+            dueAt?: string;
+            /** @description Hoặc gia hạn thêm theo số giờ SLA */
+            slaHours?: number;
+        };
+        DashboardCategoryMetricDto: {
+            categoryPublicId: string;
+            code: string;
+            name: string;
+            totalIssues: number;
+            resolvedCount: number;
+            pendingCount: number;
+            percentage: number;
+        };
+        DashboardWardMetricDto: {
+            name: string;
+            total: number;
+            resolved: number;
+        };
+        DashboardMetricsDto: {
+            totalReports: number;
+            totalIssues: number;
+            resolvedCount: number;
+            resolvedRate: number;
+            avgResolutionDays: number;
+            pendingCount: number;
+            overdueCount: number;
+            reopenedCount: number;
+            byCategory: components["schemas"]["DashboardCategoryMetricDto"][];
+            byWard: components["schemas"]["DashboardWardMetricDto"][];
         };
     };
     responses: never;
@@ -1458,6 +1820,264 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_updateProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateIssueProgressDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_resolveIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffVerificationsController_requestVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVerificationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationTaskDto"];
+                };
+            };
+        };
+    };
+    VolunteerVerificationsController_findList: {
+        parameters: {
+            query: {
+                /** @description Lọc theo trạng thái nhiệm vụ (OPEN, IN_PROGRESS, COMPLETED, CANCELLED) */
+                status?: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+                /** @description Chỉ lấy các nhiệm vụ đã được Tình nguyện viên hiện tại nhận */
+                mine?: boolean;
+                /** @description Tìm kiếm theo mã hồ sơ, tiêu đề hoặc địa chỉ */
+                search?: string;
+                /** @description Page index starting from 1 */
+                page: number;
+                /** @description Number of items per page (1..100) */
+                limit: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    VolunteerVerificationsController_findDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationTaskDto"];
+                };
+            };
+        };
+    };
+    VolunteerVerificationsController_claim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationTaskDto"];
+                };
+            };
+        };
+    };
+    VolunteerVerificationsController_submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitVerificationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationTaskDto"];
+                };
+            };
+        };
+    };
+    FeedbackController_submitFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFeedbackDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicIssueDetailDto"];
+                };
+            };
+        };
+    };
+    FeedbackController_reviewFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewFeedbackDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    DashboardController_getStaffDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardMetricsDto"];
+                };
+            };
+        };
+    };
+    DashboardController_getPublicDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardMetricsDto"];
                 };
             };
         };
