@@ -12,13 +12,21 @@ import type {
   BackendCategoryCode,
   BackendIssueStatus,
   BackendMediaStage,
-  BackendRoleName,
+  BackendPriority,
+  BackendVerificationOutcome,
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
+import { dashboardApi } from '@/features/dashboard/api';
+import { feedbackApi } from '@/features/feedback/api';
 import { issuesApi, type MyIssueItemDto } from '@/features/issues/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
+import { staffApi, type StaffIssueItemDto } from '@/features/staff/api';
+import {
+  verificationsApi,
+  type VerificationTaskDto,
+} from '@/features/verifications/api';
 import {
   apiClient,
   getStoredToken,
@@ -29,9 +37,9 @@ const TEST_FLOWS = [
   {
     id: 'Flow 0',
     stage: 'Giai đoạn 0 & 3',
-    title: 'Healthcheck & Demo Role Switcher (CITIZEN / STAFF / VOLUNTEER)',
+    title: 'Healthcheck & Đăng nhập thuần (POST /auth/login)',
     endpoints:
-      'GET /health, POST /auth/demo-switch, POST /auth/login, GET /auth/me, PATCH /auth/me/preferences, GET /roles, GET /auth/staff-check',
+      'GET /health, POST /auth/login, GET /auth/me, PATCH /auth/me/preferences, GET /roles, GET /auth/staff-check',
   },
   {
     id: 'Flow 1',
@@ -83,6 +91,8 @@ export default function TestHarnessHomePage() {
   const [output, setOutput] = useState<string>('Chưa thực hiện thao tác nào');
   const [currentUser, setCurrentUser] = useState<AuthUserDto | null>(null);
   const [phone, setPhone] = useState('0901000001');
+  const [issuedOtp, setIssuedOtp] = useState<string | null>(null);
+  const [otpInput, setOtpInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStage, setUploadStage] = useState<BackendMediaStage>('BEFORE');
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -108,6 +118,41 @@ export default function TestHarnessHomePage() {
   );
   const [meTooTarget, setMeTooTarget] = useState('HT-2026-001');
   const [myIssues, setMyIssues] = useState<MyIssueItemDto[]>([]);
+  const [staffStatusFilter, setStaffStatusFilter] = useState<string>('');
+  const [staffOverdueOnly, setStaffOverdueOnly] = useState(false);
+  const [staffIssues, setStaffIssues] = useState<StaffIssueItemDto[]>([]);
+  const [staffTargetId, setStaffTargetId] = useState('HT-2026-001');
+  const [staffPriority, setStaffPriority] = useState<BackendPriority>('HIGH');
+  const [staffIntakeNote, setStaffIntakeNote] = useState('');
+  const [staffRejectReason, setStaffRejectReason] = useState(
+    'Không thuộc phạm vi quản lý của phường',
+  );
+  const [staffDeptCode, setStaffDeptCode] = useState('ROAD_MAINTENANCE');
+  const [staffSlaHours, setStaffSlaHours] = useState('48');
+  const [staffMergeSources, setStaffMergeSources] = useState('');
+  const [verifyInstruction, setVerifyInstruction] = useState(
+    'Kiểm tra thực tế tại hiện trường và chụp ảnh đối chiếu',
+  );
+  const [volunteerTasks, setVolunteerTasks] = useState<VerificationTaskDto[]>(
+    [],
+  );
+  const [verifyTargetId, setVerifyTargetId] = useState('');
+  const [verifyOutcome, setVerifyOutcome] =
+    useState<BackendVerificationOutcome>('STILL_EXISTS');
+  const [verifyNote, setVerifyNote] = useState(
+    'Đã có mặt tại hiện trường, ghi nhận đúng thực tế phản ánh',
+  );
+  const [verifyImageUrl, setVerifyImageUrl] = useState(
+    'https://res.cloudinary.com/demo/image/upload/v1/verify-field.jpg',
+  );
+  const [resolveNote, setResolveNote] = useState(
+    'Đơn vị chuyên trách đã hoàn thành khắc phục sự cố và vệ sinh sạch khu vực.',
+  );
+  const [resolveAfterUrl, setResolveAfterUrl] = useState('');
+  const [feedbackSatisfied, setFeedbackSatisfied] = useState(false);
+  const [feedbackReason, setFeedbackReason] = useState(
+    'Sau xử lý vẫn còn đọng nước khi mưa lớn',
+  );
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -128,24 +173,34 @@ export default function TestHarnessHomePage() {
     }
   }
 
-  async function handleDemoSwitch(
-    role: Extract<BackendRoleName, 'CITIZEN' | 'STAFF' | 'VOLUNTEER'>,
-  ) {
-    await runAction(async () => {
-      const res = await authApi.demoSwitch(role);
-      if (res.success) {
-        setCurrentUser(res.data.user);
-      }
-      return res;
-    });
+  function handleRequestOtp() {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) {
+      setOutput('Số điện thoại không hợp lệ (cần 8–15 chữ số).');
+      return;
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setIssuedOtp(code);
+    setOtpInput('');
+    setOutput(`Tin nhắn SMS OTP giả lập gửi tới ${phone}: Mã xác thực của bạn là ${code}`);
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!issuedOtp) {
+      setOutput('Vui lòng bấm "Gửi OTP giả lập" trước khi đăng nhập.');
+      return;
+    }
+    if (otpInput.trim() !== issuedOtp) {
+      setOutput('Mã xác thực OTP chưa đúng.');
+      return;
+    }
     await runAction(async () => {
       const res = await authApi.login(phone);
       if (res.success) {
         setCurrentUser(res.data.user);
+        setIssuedOtp(null);
+        setOtpInput('');
       }
       return res;
     });
@@ -250,6 +305,23 @@ export default function TestHarnessHomePage() {
     });
   }
 
+  async function handleFetchStaffIssues() {
+    await runAction(async () => {
+      const res = await staffApi.listIssues({
+        page: 1,
+        limit: 20,
+        status: (staffStatusFilter || undefined) as
+          | BackendIssueStatus
+          | undefined,
+        overdue: staffOverdueOnly || undefined,
+      });
+      if (res.success) {
+        setStaffIssues(res.data);
+      }
+      return res;
+    });
+  }
+
   return (
     <main
       className={`mx-auto max-w-4xl p-6 font-sans ${
@@ -299,31 +371,53 @@ export default function TestHarnessHomePage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-          <span className="font-medium">Demo Switch:</span>
+        <form
+          onSubmit={handleLogin}
+          className="flex flex-wrap items-center gap-2 border-t pt-3"
+        >
+          <label className="font-medium" htmlFor="phone-input">
+            SĐT Login (OTP):
+          </label>
+          <input
+            id="phone-input"
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setIssuedOtp(null);
+              setOtpInput('');
+            }}
+            className="rounded border px-2 py-1"
+            placeholder="0901000001"
+          />
           <button
             type="button"
-            onClick={() => handleDemoSwitch('CITIZEN')}
+            onClick={handleRequestOtp}
             disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
+            className="rounded border px-3 py-1"
           >
-            CITIZEN (0901000001)
+            {issuedOtp ? 'Gửi lại OTP' : 'Gửi OTP giả lập'}
           </button>
+          {issuedOtp && (
+            <>
+              <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-mono text-emerald-700 border border-emerald-200">
+                SMS giả lập: <strong>{issuedOtp}</strong>
+              </span>
+              <input
+                aria-label="Mã OTP"
+                value={otpInput}
+                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                maxLength={6}
+                className="w-24 rounded border px-2 py-1 font-mono"
+                placeholder="Mã OTP"
+              />
+            </>
+          )}
           <button
-            type="button"
-            onClick={() => handleDemoSwitch('STAFF')}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
+            type="submit"
+            disabled={loading || !issuedOtp}
+            className="rounded border px-3 py-1 disabled:opacity-50"
           >
-            STAFF (0901000002)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleDemoSwitch('VOLUNTEER')}
-            disabled={loading}
-            className="rounded border px-2.5 py-1 hover:bg-gray-100"
-          >
-            VOLUNTEER (0901000003)
+            Xác thực OTP &amp; POST /auth/login
           </button>
           <button
             type="button"
@@ -332,29 +426,6 @@ export default function TestHarnessHomePage() {
             className="rounded border px-2.5 py-1 text-red-600"
           >
             Đăng xuất
-          </button>
-        </div>
-
-        <form
-          onSubmit={handleLogin}
-          className="flex flex-wrap items-center gap-2 border-t pt-3"
-        >
-          <label className="font-medium" htmlFor="phone-input">
-            SĐT Login:
-          </label>
-          <input
-            id="phone-input"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="rounded border px-2 py-1"
-            placeholder="0901000001"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded border px-3 py-1"
-          >
-            POST /auth/login
           </button>
           <button
             type="button"
@@ -767,6 +838,495 @@ export default function TestHarnessHomePage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Giai đoạn 8: Flow 3 — Staff Triage, Reject, Merge & Assign (R04) */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 8 — Flow 3: Cán bộ Điều phối (Triage, Reject, Merge &amp;
+          Assign)
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={staffStatusFilter}
+            onChange={(e) => setStaffStatusFilter(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING_REVIEW">PENDING_REVIEW</option>
+            <option value="RECEIVED">RECEIVED</option>
+            <option value="VERIFYING">VERIFYING</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="REJECTED">REJECTED</option>
+          </select>
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={staffOverdueOnly}
+              onChange={(e) => setStaffOverdueOnly(e.target.checked)}
+            />
+            <span>Quá hạn (overdue=true)</span>
+          </label>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleFetchStaffIssues}
+            className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+          >
+            GET /staff/issues
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffTargetId}
+            onChange={(e) => setStaffTargetId(e.target.value)}
+            placeholder="Mã/publicId hồ sơ (VD: HT-2026-001)"
+            className="w-52 rounded border px-2 py-1 text-xs"
+          />
+          <select
+            value={staffPriority}
+            onChange={(e) =>
+              setStaffPriority(e.target.value as BackendPriority)
+            }
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
+          <input
+            value={staffIntakeNote}
+            onChange={(e) => setStaffIntakeNote(e.target.value)}
+            placeholder="Ghi chú tiếp nhận / yêu cầu bổ sung"
+            className="min-w-48 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.triage(staffTargetId, {
+                  priority: staffPriority,
+                  intakeNote: staffIntakeNote || undefined,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /triage (Tiếp nhận)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.triage(staffTargetId, {
+                  needsInformation: true,
+                  intakeNote:
+                    staffIntakeNote || 'Vui lòng chụp rõ hơn vị trí sự cố.',
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            Yêu cầu bổ sung
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffRejectReason}
+            onChange={(e) => setStaffRejectReason(e.target.value)}
+            placeholder="Lý do từ chối"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.reject(staffTargetId, {
+                  rejectionReason: staffRejectReason,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs text-red-600"
+          >
+            PATCH /reject
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.updatePublicReview(staffTargetId, { verified: true }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /public-review (verified=true)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <select
+            value={staffDeptCode}
+            onChange={(e) => setStaffDeptCode(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="ROAD_MAINTENANCE">ROAD_MAINTENANCE</option>
+            <option value="LIGHTING">LIGHTING</option>
+            <option value="ENVIRONMENT">ENVIRONMENT</option>
+            <option value="DRAINAGE">DRAINAGE</option>
+          </select>
+          <input
+            value={staffSlaHours}
+            onChange={(e) => setStaffSlaHours(e.target.value)}
+            placeholder="SLA (giờ)"
+            className="w-24 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.assign(staffTargetId, {
+                  departmentCode: staffDeptCode,
+                  slaHours: Number(staffSlaHours) || 48,
+                  publicReviewVerified: true,
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            PATCH /assign (Giao bộ phận)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffMergeSources}
+            onChange={(e) => setStaffMergeSources(e.target.value)}
+            placeholder="Các mã/UUID nguồn cần gộp (cách nhau dấu phẩy)"
+            className="min-w-64 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.merge(staffTargetId, {
+                  sourceIssuePublicIds: staffMergeSources
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                }),
+              )
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            POST /merge (Gộp trùng)
+          </button>
+        </div>
+
+        {staffIssues.length > 0 && (
+          <div className="space-y-1 border-t pt-2 text-xs">
+            <div className="font-medium">
+              Danh sách điều phối ({staffIssues.length}):
+            </div>
+            {staffIssues.slice(0, 8).map((item) => (
+              <div
+                key={item.publicId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded bg-gray-50 p-2"
+              >
+                <div>
+                  <strong>{item.code}</strong> — {item.title} | {item.status} /{' '}
+                  {item.stage} | {item.priority} | {item.reportCount} lượt
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStaffTargetId(item.code)}
+                  className="rounded border px-2 py-0.5 text-[11px]"
+                >
+                  Chọn
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Giai đoạn 9: Flow 4 — Thanh niên Tình nguyện Xác minh Thực địa */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 9 — Flow 4: Thanh niên Tình nguyện Xác minh Thực địa
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={staffTargetId}
+            onChange={(e) => setStaffTargetId(e.target.value)}
+            placeholder="Mã/UUID hồ sơ"
+            className="w-44 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={verifyInstruction}
+            onChange={(e) => setVerifyInstruction(e.target.value)}
+            placeholder="Hướng dẫn xác minh gửi TNV"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(async () => {
+                const res = await verificationsApi.requestForIssue(
+                  staffTargetId,
+                  { instruction: verifyInstruction, slaHours: 24 },
+                );
+                if (res.success) {
+                  setVerifyTargetId(res.data.publicId);
+                }
+                return res;
+              })
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            STAFF: POST /verifications
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(async () => {
+                const res = await verificationsApi.listVolunteerTasks();
+                if (res.success) {
+                  setVolunteerTasks(res.data);
+                  if (!verifyTargetId && res.data[0]) {
+                    setVerifyTargetId(res.data[0].publicId);
+                  }
+                }
+                return res;
+              })
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            VOLUNTEER: GET /volunteer/verifications
+          </button>
+          <input
+            value={verifyTargetId}
+            onChange={(e) => setVerifyTargetId(e.target.value)}
+            placeholder="Verification publicId hoặc Issue code"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() => verificationsApi.claimTask(verifyTargetId))
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            POST /claim (Nhận việc)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={verifyOutcome}
+            onChange={(e) =>
+              setVerifyOutcome(e.target.value as BackendVerificationOutcome)
+            }
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="STILL_EXISTS">STILL_EXISTS</option>
+            <option value="ALREADY_RESOLVED">ALREADY_RESOLVED</option>
+            <option value="NOT_FOUND_OR_UNCLEAR">NOT_FOUND_OR_UNCLEAR</option>
+          </select>
+          <input
+            value={verifyNote}
+            onChange={(e) => setVerifyNote(e.target.value)}
+            placeholder="Ghi chú xác minh"
+            className="min-w-52 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={verifyImageUrl}
+            onChange={(e) => setVerifyImageUrl(e.target.value)}
+            placeholder="URL ảnh VERIFICATION"
+            className="min-w-52 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                verificationsApi.submitTask(verifyTargetId, {
+                  outcome: verifyOutcome,
+                  verifiedLatitude: 10.9512,
+                  verifiedLongitude: 106.8245,
+                  resultNote: verifyNote,
+                  imageUrls: verifyImageUrl.trim() ? [verifyImageUrl.trim()] : [],
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            POST /submit (Nộp xác minh)
+          </button>
+        </div>
+
+        {volunteerTasks.length > 0 && (
+          <div className="space-y-1 border-t pt-2 text-xs">
+            <div className="font-medium">
+              Nhiệm vụ TNV ({volunteerTasks.length}):
+            </div>
+            {volunteerTasks.slice(0, 6).map((task) => (
+              <div
+                key={task.publicId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded bg-gray-50 p-2"
+              >
+                <div>
+                  <strong>{task.issue.code}</strong> — {task.issue.title} |{' '}
+                  {task.status} | {task.outcome ?? 'Chưa nộp'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVerifyTargetId(task.publicId)}
+                  className="rounded border px-2 py-0.5 text-[11px]"
+                >
+                  Chọn
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Giai đoạn 10 & 11: Flow 5 & Flow 6 — Nghiệm thu AFTER, Dashboard & Feedback / Reopen */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 10 &amp; 11 — Flow 5 &amp; Flow 6: Nghiệm thu AFTER, Dashboard
+          &amp; Đánh giá / Mở lại
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={resolveNote}
+            onChange={(e) => setResolveNote(e.target.value)}
+            placeholder="Nội dung kết quả nghiệm thu"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={resolveAfterUrl}
+            onChange={(e) => setResolveAfterUrl(e.target.value)}
+            placeholder="URL ảnh AFTER (để trống để test lỗi 400)"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.updateProgress(staffTargetId, {
+                  stage: 'resolution_submitted',
+                  note: resolveNote,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /progress
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.resolve(staffTargetId, {
+                  resolutionNote: resolveNote,
+                  imageUrls: resolveAfterUrl.trim()
+                    ? [resolveAfterUrl.trim()]
+                    : [],
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            PATCH /resolve (R05)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction(() => dashboardApi.getStaffDashboard())}
+            className="rounded border px-3 py-1 text-xs"
+          >
+            GET /staff/dashboard
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction(() => dashboardApi.getPublicDashboard())}
+            className="rounded border px-3 py-1 text-xs"
+          >
+            GET /dashboard/public
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={feedbackSatisfied}
+              onChange={(e) => setFeedbackSatisfied(e.target.checked)}
+            />
+            <span>Hài lòng (isSatisfied)</span>
+          </label>
+          <input
+            value={feedbackReason}
+            onChange={(e) => setFeedbackReason(e.target.value)}
+            placeholder="Lý do / nhận xét của người dân"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                feedbackApi.submit(staffTargetId, {
+                  isSatisfied: feedbackSatisfied,
+                  rating: feedbackSatisfied ? 5 : 2,
+                  reason: feedbackReason,
+                }),
+              )
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            CITIZEN: POST /feedback (R06)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                feedbackApi.review(staffTargetId, {
+                  reviewStatus: 'REOPENED',
+                  reviewNote: 'Mở lại để kiểm tra bổ sung',
+                  slaHours: 24,
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            STAFF: PATCH /review (REOPENED)
+          </button>
+        </div>
       </section>
 
       {/* Output console */}

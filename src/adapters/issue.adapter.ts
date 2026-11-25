@@ -4,10 +4,12 @@ import {
   toUiRole,
   toUiSeverity,
   toUiStatus,
+  toUiVerificationOutcome,
   type UiIncidentCategory,
   type UiIncidentSeverity,
   type UiIncidentStatus,
   type UiUserRole,
+  type UiVerificationOutcome,
   type UiWorkflowStage,
 } from '@/adapters/domain.adapter';
 import type { BackendCategoryCode, BackendIssueStatus } from '@/contracts/api.types';
@@ -29,6 +31,32 @@ export interface UiAuditLogItem {
   newStage?: UiWorkflowStage;
   details: string;
   timestamp: string;
+}
+
+export interface UiFeedbackItem {
+  id: string;
+  incidentId: string;
+  rating?: number;
+  reason?: string;
+  comment?: string;
+  isReopenRequest: boolean;
+  submittedAt: string;
+  review?: { accepted: boolean; note?: string };
+}
+
+export interface UiVerificationSummary {
+  publicId: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  instruction?: string;
+  dueAt?: string;
+  result?: UiVerificationOutcome;
+  notes?: string;
+  safetyRiskNote?: string;
+  evidenceImageUrl?: string;
+  verifiedLat?: number;
+  verifiedLng?: number;
+  verifiedAt?: string;
+  volunteerName?: string;
 }
 
 export interface UiIncident {
@@ -61,7 +89,11 @@ export interface UiIncident {
   slaHours: number;
   deadlineAt: string;
   isOverdue: boolean;
+  assignments: never[];
+  needsReopenReview: boolean;
   auditLogs: UiAuditLogItem[];
+  verification?: UiVerificationSummary;
+  feedback?: UiFeedbackItem[];
 }
 
 const STATUS_LABEL_VI: Record<BackendIssueStatus, string> = {
@@ -91,6 +123,10 @@ export function mapPublicIssueToUiIncident(
   const afterImage = isDetailDto(dto)
     ? dto.media.find((m) => m.stage === 'AFTER')?.url
     : undefined;
+  const verificationImage = isDetailDto(dto)
+    ? dto.media.find((m) => m.stage === 'VERIFICATION')?.url
+    : undefined;
+  const uiStatus = toUiStatus(dto.status, dto.needsReopenReview, dto.stage);
 
   return {
     id: dto.publicId,
@@ -99,8 +135,9 @@ export function mapPublicIssueToUiIncident(
     description: dto.description ?? '',
     category: toUiCategory(dto.category.code as BackendCategoryCode),
     categoryLabel: dto.category.name,
-    status: toUiStatus(dto.status, dto.needsReopenReview, dto.stage),
-    statusLabel: STATUS_LABEL_VI[dto.status],
+    status: uiStatus,
+    statusLabel:
+      uiStatus === 'reopened' ? 'Đã mở lại' : STATUS_LABEL_VI[dto.status],
     stage: dto.stage,
     stageLabel: STAGE_LABEL_VI[dto.stage],
     severity: toUiSeverity(dto.priority),
@@ -124,6 +161,8 @@ export function mapPublicIssueToUiIncident(
     slaHours: dto.category.slaHours,
     deadlineAt: dto.deadlineAt ?? dto.dueAt ?? '',
     isOverdue: dto.isOverdue,
+    assignments: [],
+    needsReopenReview: dto.needsReopenReview,
     auditLogs: isDetailDto(dto)
       ? dto.timeline.map((item) => ({
           id: item.publicId,
@@ -143,5 +182,45 @@ export function mapPublicIssueToUiIncident(
           timestamp: item.timestamp ?? item.createdAt,
         }))
       : [],
+    verification:
+      isDetailDto(dto) && dto.latestVerification
+        ? {
+            publicId: dto.latestVerification.publicId,
+            status: dto.latestVerification.status,
+            instruction: dto.latestVerification.instruction ?? undefined,
+            dueAt: dto.latestVerification.dueAt ?? undefined,
+            result: dto.latestVerification.outcome
+              ? toUiVerificationOutcome(dto.latestVerification.outcome)
+              : undefined,
+            notes: dto.latestVerification.resultNote ?? undefined,
+            safetyRiskNote:
+              dto.latestVerification.safetyRiskNote ?? undefined,
+            evidenceImageUrl: verificationImage,
+            verifiedLat:
+              dto.latestVerification.verifiedLatitude ?? undefined,
+            verifiedLng:
+              dto.latestVerification.verifiedLongitude ?? undefined,
+            verifiedAt: dto.latestVerification.completedAt ?? undefined,
+            volunteerName:
+              dto.latestVerification.volunteerLabel ?? undefined,
+          }
+        : undefined,
+    feedback: isDetailDto(dto)
+      ? dto.feedbackSummary.items.map((item) => ({
+          id: item.publicId,
+          incidentId: dto.publicId,
+          rating: item.rating ?? undefined,
+          reason: item.reason ?? undefined,
+          comment: item.comment ?? undefined,
+          isReopenRequest: !item.isSatisfied,
+          submittedAt: item.createdAt,
+          review:
+            item.reviewStatus === 'REOPENED'
+              ? { accepted: true, note: item.reviewNote ?? undefined }
+              : item.reviewStatus === 'ACKNOWLEDGED'
+                ? { accepted: false, note: item.reviewNote ?? undefined }
+                : undefined,
+        }))
+      : undefined,
   };
 }
