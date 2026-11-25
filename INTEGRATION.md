@@ -21,7 +21,8 @@ naisee_frontend/src/
 ├── features/               # (Sẽ bổ sung dần theo từng Giai đoạn 3 -> 11)
 │   └── <feature>/api.ts    # Headless SDK functions (không chứa JSX/CSS)
 ├── adapters/
-│   └── domain.adapter.ts   # Chuyển đổi enum/field giữa Backend DTO <-> Standalone UI
+│   ├── domain.adapter.ts   # Chuyển đổi enum/field giữa Backend DTO <-> Standalone UI
+│   └── issue.adapter.ts    # Map PublicIssueSummaryDto / PublicIssueDetailDto -> UiIncident
 └── app/
     └── page.tsx            # Test Harness tối giản để verify luồng API thật
 ```

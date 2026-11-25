@@ -6,13 +6,16 @@ import {
   toUiRole,
   toUiSeverity,
 } from '@/adapters/domain.adapter';
+import { mapPublicIssueToUiIncident } from '@/adapters/issue.adapter';
 import type {
   BackendCategoryCode,
+  BackendIssueStatus,
   BackendMediaStage,
   BackendRoleName,
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
+import { issuesApi } from '@/features/issues/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
 import {
@@ -87,6 +90,12 @@ export default function TestHarnessHomePage() {
   );
   const [aiHint, setAiHint] = useState<string>('');
   const [aiResult, setAiResult] = useState<ClassifyImageResultDto | null>(null);
+  const [nearbyLat, setNearbyLat] = useState('10.9512');
+  const [nearbyLng, setNearbyLng] = useState('106.8245');
+  const [nearbyRadius, setNearbyRadius] = useState('500');
+  const [listStatus, setListStatus] = useState<string>('');
+  const [listSearch, setListSearch] = useState('');
+  const [issueLookup, setIssueLookup] = useState('HT-2026-001');
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -445,6 +454,124 @@ export default function TestHarnessHomePage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Giai đoạn 6: Nearby, List & Detail Public (R03) */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 6 — Flow 1: Quanh tôi (nearby), Danh sách &amp; Chi tiết
+          Công khai (zero-PII)
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={nearbyLat}
+            onChange={(e) => setNearbyLat(e.target.value)}
+            placeholder="Lat"
+            className="w-28 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={nearbyLng}
+            onChange={(e) => setNearbyLng(e.target.value)}
+            placeholder="Lng"
+            className="w-28 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={nearbyRadius}
+            onChange={(e) => setNearbyRadius(e.target.value)}
+            placeholder="Radius (m)"
+            className="w-24 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                issuesApi.getNearby({
+                  lat: Number(nearbyLat),
+                  lng: Number(nearbyLng),
+                  radiusMeters: Number(nearbyRadius),
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+          >
+            GET /issues/nearby
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <select
+            value={listStatus}
+            onChange={(e) => setListStatus(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING_REVIEW">PENDING_REVIEW</option>
+            <option value="RECEIVED">RECEIVED</option>
+            <option value="VERIFYING">VERIFYING</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="RESOLVED">RESOLVED</option>
+          </select>
+          <input
+            value={listSearch}
+            onChange={(e) => setListSearch(e.target.value)}
+            placeholder="Tìm theo mã / tiêu đề / địa chỉ..."
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                issuesApi.list({
+                  page: 1,
+                  limit: 10,
+                  status: (listStatus || undefined) as
+                    | BackendIssueStatus
+                    | undefined,
+                  search: listSearch || undefined,
+                }),
+              )
+            }
+            className="rounded border px-3 py-1"
+          >
+            GET /issues
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={issueLookup}
+            onChange={(e) => setIssueLookup(e.target.value)}
+            placeholder="publicId (UUID) hoặc code (HT-2026-001)"
+            className="min-w-64 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction(() => issuesApi.getDetail(issueLookup))}
+            className="rounded border px-3 py-1"
+          >
+            GET /issues/:id (Raw BE)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(async () => {
+                const res = await issuesApi.getDetail(issueLookup);
+                if (!res.success) return res;
+                return {
+                  adaptedUiIncident: mapPublicIssueToUiIncident(res.data),
+                };
+              })
+            }
+            className="rounded border px-3 py-1"
+          >
+            Xem bản Adapter UI
+          </button>
+        </div>
       </section>
 
       {/* Output console */}
