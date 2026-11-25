@@ -1,8 +1,17 @@
 'use client';
 
 import { useState, useSyncExternalStore } from 'react';
-import { toUiRole } from '@/adapters/domain.adapter';
-import type { BackendMediaStage, BackendRoleName } from '@/contracts/api.types';
+import {
+  toUiCategory,
+  toUiRole,
+  toUiSeverity,
+} from '@/adapters/domain.adapter';
+import type {
+  BackendCategoryCode,
+  BackendMediaStage,
+  BackendRoleName,
+} from '@/contracts/api.types';
+import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
@@ -73,6 +82,11 @@ export default function TestHarnessHomePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStage, setUploadStage] = useState<BackendMediaStage>('BEFORE');
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [aiImageUrl, setAiImageUrl] = useState<string>(
+    'https://res.cloudinary.com/demo/image/upload/v1/ngap-nuoc.jpg',
+  );
+  const [aiHint, setAiHint] = useState<string>('');
+  const [aiResult, setAiResult] = useState<ClassifyImageResultDto | null>(null);
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -153,6 +167,18 @@ export default function TestHarnessHomePage() {
       const res = await mediaApi.upload(selectedFile, uploadStage);
       if (res.success) {
         setUploadedUrl(res.data.url);
+        setAiImageUrl(res.data.url);
+      }
+      return res;
+    });
+  }
+
+  async function handleClassifyImage(e: React.FormEvent) {
+    e.preventDefault();
+    await runAction(async () => {
+      const res = await aiApi.classifyImage(aiImageUrl, aiHint);
+      if (res.success) {
+        setAiResult(res.data);
       }
       return res;
     });
@@ -367,6 +393,56 @@ export default function TestHarnessHomePage() {
               alt="Cloudinary upload preview"
               className="max-h-40 rounded border object-contain"
             />
+          </div>
+        )}
+      </section>
+
+      {/* Giai đoạn 5: AI Classify Image */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 5 — AI Gợi ý Phân loại Ảnh (POST /ai/classify-image)
+        </div>
+        <form
+          onSubmit={handleClassifyImage}
+          className="flex flex-wrap items-center gap-2"
+        >
+          <input
+            value={aiImageUrl}
+            onChange={(e) => setAiImageUrl(e.target.value)}
+            placeholder="URL ảnh (tự điền sau khi upload)"
+            className="min-w-72 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <input
+            value={aiHint}
+            onChange={(e) => setAiHint(e.target.value)}
+            placeholder="Gợi ý thêm (VD: ổ gà, ngập nước...)"
+            className="rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+          >
+            Phân tích AI
+          </button>
+        </form>
+
+        {aiResult && (
+          <div className="rounded bg-gray-50 p-2.5 text-xs">
+            <div>
+              Gợi ý: <strong>{aiResult.categoryName}</strong> (BE:{' '}
+              <code>{aiResult.categoryCode}</code> / UI:{' '}
+              <code>
+                {toUiCategory(aiResult.categoryCode as BackendCategoryCode)}
+              </code>
+              ) | Ưu tiên: <code>{aiResult.suggestedPriority}</code> (UI:{' '}
+              <code>{toUiSeverity(aiResult.suggestedPriority)}</code>) | Độ tin
+              cậy: {Math.round(aiResult.confidence * 100)}% |{' '}
+              {aiResult.isMocked ? 'Rule fallback' : 'Vision API'}
+            </div>
+            <div className="mt-1 text-gray-600">
+              Tiêu đề gợi ý: {aiResult.suggestedTitle}
+            </div>
           </div>
         )}
       </section>
