@@ -33,10 +33,9 @@ export interface StaffCheckDto {
  * Standalone frontend agents can import/copy these functions directly.
  */
 export const authApi = {
-  async login(phone: string, password?: string): Promise<ApiEnvelope<AuthResponseDto>> {
+  async login(phone: string): Promise<ApiEnvelope<AuthResponseDto>> {
     const res = await apiClient.post<AuthResponseDto>('/auth/login', {
       phone,
-      ...(password ? { password } : {}),
     });
     if (res.success) {
       setStoredToken(res.data.accessToken);

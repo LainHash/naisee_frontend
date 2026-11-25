@@ -91,6 +91,8 @@ export default function TestHarnessHomePage() {
   const [output, setOutput] = useState<string>('Chưa thực hiện thao tác nào');
   const [currentUser, setCurrentUser] = useState<AuthUserDto | null>(null);
   const [phone, setPhone] = useState('0901000001');
+  const [issuedOtp, setIssuedOtp] = useState<string | null>(null);
+  const [otpInput, setOtpInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStage, setUploadStage] = useState<BackendMediaStage>('BEFORE');
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
@@ -171,12 +173,34 @@ export default function TestHarnessHomePage() {
     }
   }
 
+  function handleRequestOtp() {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 8 || digits.length > 15) {
+      setOutput('Số điện thoại không hợp lệ (cần 8–15 chữ số).');
+      return;
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setIssuedOtp(code);
+    setOtpInput('');
+    setOutput(`Tin nhắn SMS OTP giả lập gửi tới ${phone}: Mã xác thực của bạn là ${code}`);
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!issuedOtp) {
+      setOutput('Vui lòng bấm "Gửi OTP giả lập" trước khi đăng nhập.');
+      return;
+    }
+    if (otpInput.trim() !== issuedOtp) {
+      setOutput('Mã xác thực OTP chưa đúng.');
+      return;
+    }
     await runAction(async () => {
       const res = await authApi.login(phone);
       if (res.success) {
         setCurrentUser(res.data.user);
+        setIssuedOtp(null);
+        setOtpInput('');
       }
       return res;
     });
@@ -352,15 +376,49 @@ export default function TestHarnessHomePage() {
           className="flex flex-wrap items-center gap-2 border-t pt-3"
         >
           <label className="font-medium" htmlFor="phone-input">
-            SĐT Login:
+            SĐT Login (OTP):
           </label>
           <input
             id="phone-input"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setIssuedOtp(null);
+              setOtpInput('');
+            }}
             className="rounded border px-2 py-1"
             placeholder="0901000001"
           />
+          <button
+            type="button"
+            onClick={handleRequestOtp}
+            disabled={loading}
+            className="rounded border px-3 py-1"
+          >
+            {issuedOtp ? 'Gửi lại OTP' : 'Gửi OTP giả lập'}
+          </button>
+          {issuedOtp && (
+            <>
+              <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-mono text-emerald-700 border border-emerald-200">
+                SMS giả lập: <strong>{issuedOtp}</strong>
+              </span>
+              <input
+                aria-label="Mã OTP"
+                value={otpInput}
+                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                maxLength={6}
+                className="w-24 rounded border px-2 py-1 font-mono"
+                placeholder="Mã OTP"
+              />
+            </>
+          )}
+          <button
+            type="submit"
+            disabled={loading || !issuedOtp}
+            className="rounded border px-3 py-1 disabled:opacity-50"
+          >
+            Xác thực OTP &amp; POST /auth/login
+          </button>
           <button
             type="button"
             onClick={handleLogout}
@@ -368,13 +426,6 @@ export default function TestHarnessHomePage() {
             className="rounded border px-2.5 py-1 text-red-600"
           >
             Đăng xuất
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded border px-3 py-1"
-          >
-            POST /auth/login
           </button>
           <button
             type="button"
