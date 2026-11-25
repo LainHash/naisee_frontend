@@ -31,6 +31,16 @@ export interface UiAuditLogItem {
   timestamp: string;
 }
 
+export interface UiFeedbackItem {
+  id: string;
+  incidentId: string;
+  rating?: number;
+  comment?: string;
+  isReopenRequest: boolean;
+  submittedAt: string;
+  review?: { accepted: boolean; note?: string };
+}
+
 export interface UiIncident {
   id: string;
   code: string;
@@ -61,7 +71,9 @@ export interface UiIncident {
   slaHours: number;
   deadlineAt: string;
   isOverdue: boolean;
+  assignments: never[];
   auditLogs: UiAuditLogItem[];
+  feedback?: UiFeedbackItem[];
 }
 
 const STATUS_LABEL_VI: Record<BackendIssueStatus, string> = {
@@ -91,6 +103,7 @@ export function mapPublicIssueToUiIncident(
   const afterImage = isDetailDto(dto)
     ? dto.media.find((m) => m.stage === 'AFTER')?.url
     : undefined;
+  const uiStatus = toUiStatus(dto.status, dto.needsReopenReview, dto.stage);
 
   return {
     id: dto.publicId,
@@ -99,8 +112,9 @@ export function mapPublicIssueToUiIncident(
     description: dto.description ?? '',
     category: toUiCategory(dto.category.code as BackendCategoryCode),
     categoryLabel: dto.category.name,
-    status: toUiStatus(dto.status, dto.needsReopenReview, dto.stage),
-    statusLabel: STATUS_LABEL_VI[dto.status],
+    status: uiStatus,
+    statusLabel:
+      uiStatus === 'reopened' ? 'Đã mở lại' : STATUS_LABEL_VI[dto.status],
     stage: dto.stage,
     stageLabel: STAGE_LABEL_VI[dto.stage],
     severity: toUiSeverity(dto.priority),
@@ -124,6 +138,7 @@ export function mapPublicIssueToUiIncident(
     slaHours: dto.category.slaHours,
     deadlineAt: dto.deadlineAt ?? dto.dueAt ?? '',
     isOverdue: dto.isOverdue,
+    assignments: [],
     auditLogs: isDetailDto(dto)
       ? dto.timeline.map((item) => ({
           id: item.publicId,
@@ -143,5 +158,21 @@ export function mapPublicIssueToUiIncident(
           timestamp: item.timestamp ?? item.createdAt,
         }))
       : [],
+    feedback: isDetailDto(dto)
+      ? dto.feedbackSummary.items.map((item) => ({
+          id: item.publicId,
+          incidentId: dto.publicId,
+          rating: item.rating ?? undefined,
+          comment: item.comment ?? undefined,
+          isReopenRequest: !item.isSatisfied,
+          submittedAt: item.createdAt,
+          review:
+            item.reviewStatus === 'REOPENED'
+              ? { accepted: true }
+              : item.reviewStatus === 'ACKNOWLEDGED'
+                ? { accepted: false }
+                : undefined,
+        }))
+      : undefined,
   };
 }
