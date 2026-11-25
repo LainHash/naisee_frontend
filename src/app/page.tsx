@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import {
+  STAGE_LABEL_VI,
   toUiCategory,
   toUiRole,
   toUiSeverity,
@@ -15,7 +16,7 @@ import type {
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
 import { authApi, type AuthUserDto } from '@/features/auth/api';
-import { issuesApi } from '@/features/issues/api';
+import { issuesApi, type MyIssueItemDto } from '@/features/issues/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
 import {
@@ -97,6 +98,16 @@ export default function TestHarnessHomePage() {
   const [listStatus, setListStatus] = useState<string>('');
   const [listSearch, setListSearch] = useState('');
   const [issueLookup, setIssueLookup] = useState('HT-2026-001');
+  const [createCategoryCode, setCreateCategoryCode] = useState('ROAD_SURFACE');
+  const [createTitle, setCreateTitle] = useState('Ổ gà mới tại đường 30/4');
+  const [createDesc, setCreateDesc] = useState('Ngập nước và khó đi vào buổi tối');
+  const [createLat, setCreateLat] = useState('10.9521');
+  const [createLng, setCreateLng] = useState('106.8251');
+  const [createAddress, setCreateAddress] = useState(
+    'Số 88 đường 30 Tháng 4, Phường Trấn Biên',
+  );
+  const [meTooTarget, setMeTooTarget] = useState('HT-2026-001');
+  const [myIssues, setMyIssues] = useState<MyIssueItemDto[]>([]);
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -189,6 +200,51 @@ export default function TestHarnessHomePage() {
       const res = await aiApi.classifyImage(aiImageUrl, aiHint);
       if (res.success) {
         setAiResult(res.data);
+        setCreateCategoryCode(res.data.categoryCode);
+        setCreateTitle(res.data.suggestedTitle);
+      }
+      return res;
+    });
+  }
+
+  async function handleCreateIssue(e: React.FormEvent) {
+    e.preventDefault();
+    const imageUrl = uploadedUrl ?? aiImageUrl;
+    await runAction(() =>
+      issuesApi.create({
+        categoryCode: createCategoryCode,
+        title: createTitle,
+        description: createDesc || undefined,
+        latitude: Number(createLat),
+        longitude: Number(createLng),
+        addressText: createAddress,
+        imageUrls: [imageUrl],
+        ...(aiResult
+          ? {
+              aiSuggestedCategoryPublicId: aiResult.categoryPublicId,
+              aiConfidence: aiResult.confidence,
+            }
+          : {}),
+      }),
+    );
+  }
+
+  async function handleMeToo() {
+    await runAction(() =>
+      issuesApi.meToo(meTooTarget, {
+        description: 'Tôi cũng gặp sự cố này tại cùng khu vực.',
+        latitude: Number(createLat),
+        longitude: Number(createLng),
+        addressText: createAddress,
+      }),
+    );
+  }
+
+  async function handleFetchMyIssues() {
+    await runAction(async () => {
+      const res = await issuesApi.getMine({ page: 1, limit: 20 });
+      if (res.success) {
+        setMyIssues(res.data);
       }
       return res;
     });
@@ -582,6 +638,135 @@ export default function TestHarnessHomePage() {
             Xem bản Adapter UI
           </button>
         </div>
+      </section>
+
+      {/* Giai đoạn 7: Flow 2 — Citizen 3-Step Report, Me-Too & My Issues (R01, R02) */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 7 — Flow 2: Gửi phản ánh 3 bước, &quot;Tôi cũng gặp&quot;
+          &amp; Phản ánh của tôi (R01, R02)
+        </div>
+
+        <form onSubmit={handleCreateIssue} className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={createCategoryCode}
+              onChange={(e) => setCreateCategoryCode(e.target.value)}
+              className="rounded border px-2 py-1 text-xs"
+            >
+              <option value="ROAD_SURFACE">ROAD_SURFACE (Mặt đường)</option>
+              <option value="STREET_LIGHT">STREET_LIGHT (Đèn đường)</option>
+              <option value="WASTE">WASTE (Rác thải)</option>
+              <option value="FLOODING">FLOODING (Ngập nước)</option>
+              <option value="OTHER">OTHER (Khác)</option>
+            </select>
+            <input
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+              placeholder="Tiêu đề sự cố"
+              className="min-w-64 flex-1 rounded border px-2 py-1 text-xs"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={createLat}
+              onChange={(e) => setCreateLat(e.target.value)}
+              placeholder="Lat"
+              className="w-28 rounded border px-2 py-1 text-xs"
+            />
+            <input
+              value={createLng}
+              onChange={(e) => setCreateLng(e.target.value)}
+              placeholder="Lng"
+              className="w-28 rounded border px-2 py-1 text-xs"
+            />
+            <input
+              value={createAddress}
+              onChange={(e) => setCreateAddress(e.target.value)}
+              placeholder="Địa chỉ"
+              className="min-w-64 flex-1 rounded border px-2 py-1 text-xs"
+            />
+          </div>
+          <input
+            value={createDesc}
+            onChange={(e) => setCreateDesc(e.target.value)}
+            placeholder="Mô tả bổ sung"
+            className="w-full rounded border px-2 py-1 text-xs"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                runAction(() =>
+                  issuesApi.getNearby({
+                    lat: Number(createLat),
+                    lng: Number(createLng),
+                    radiusMeters: 150,
+                    forDuplicateCheck: true,
+                  }),
+                )
+              }
+              className="rounded border px-3 py-1"
+            >
+              Bước 2: Check trùng (150m)
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+            >
+              Bước 3B: POST /issues (Gửi mới)
+            </button>
+          </div>
+        </form>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={meTooTarget}
+            onChange={(e) => setMeTooTarget(e.target.value)}
+            placeholder="Mã/publicId hồ sơ trùng (VD: HT-2026-001)"
+            className="w-56 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleMeToo}
+            className="rounded border px-3 py-1"
+          >
+            Bước 3A: Tôi cũng gặp (POST /me-too)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleFetchMyIssues}
+            className="rounded border px-3 py-1"
+          >
+            GET /issues/mine (R02)
+          </button>
+        </div>
+
+        {myIssues.length > 0 && (
+          <div className="space-y-1 border-t pt-2 text-xs">
+            <div className="font-medium">
+              Phản ánh của tôi ({myIssues.length}):
+            </div>
+            {myIssues.map((item) => (
+              <div key={item.publicId} className="rounded bg-gray-50 p-2">
+                <strong>{item.code}</strong> — {item.title} |{' '}
+                <span>
+                  {STAGE_LABEL_VI[item.stage]} ({item.status} / {item.stage})
+                </span>{' '}
+                | {item.reportCount} lượt | [{item.myReportTypes.join(', ')}]
+                {item.intakeNote && (
+                  <div className="text-gray-600">
+                    Ghi chú tiếp nhận: {item.intakeNote}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Output console */}

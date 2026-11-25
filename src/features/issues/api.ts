@@ -62,6 +62,14 @@ export interface NearbyIssueItemDto extends PublicIssueSummaryDto {
   distanceMeters: number;
 }
 
+export type BackendReportType = 'INITIAL' | 'ME_TOO' | 'MERGED';
+
+export interface MyIssueItemDto extends PublicIssueSummaryDto {
+  intakeNote: string | null;
+  rejectionReason: string | null;
+  myReportTypes: BackendReportType[];
+}
+
 export interface IssueMediaItemDto {
   publicId: string;
   stage: BackendMediaStage;
@@ -133,6 +141,36 @@ export interface QueryIssuesParams {
   search?: string;
 }
 
+export interface QueryMyIssuesParams {
+  page?: number;
+  limit?: number;
+  status?: BackendIssueStatus;
+  stage?: BackendWorkflowStage;
+}
+
+export interface CreateIssueInput {
+  categoryPublicId?: string;
+  categoryCode?: string;
+  title: string;
+  description?: string;
+  latitude: number;
+  longitude: number;
+  addressText: string;
+  ward?: string;
+  imageUrls: string[];
+  aiSuggestedCategoryPublicId?: string;
+  aiSuggestedCategoryCode?: string;
+  aiConfidence?: number;
+}
+
+export interface MeTooIssueInput {
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  addressText?: string;
+  imageUrls?: string[];
+}
+
 function toQueryString(params: Record<string, unknown>): string {
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -145,7 +183,7 @@ function toQueryString(params: Record<string, unknown>): string {
 }
 
 /**
- * Headless Issues SDK matching naisee_backend IssuesController (public endpoints).
+ * Headless Issues SDK matching naisee_backend IssuesController (public & citizen endpoints).
  */
 export const issuesApi = {
   getNearby(
@@ -169,6 +207,28 @@ export const issuesApi = {
   ): Promise<ApiEnvelope<PublicIssueDetailDto>> {
     return apiClient.get<PublicIssueDetailDto>(
       `/issues/${encodeURIComponent(publicIdOrCode)}`,
+    );
+  },
+
+  getMine(
+    params: QueryMyIssuesParams = {},
+  ): Promise<ApiEnvelope<MyIssueItemDto[]>> {
+    return apiClient.get<MyIssueItemDto[]>(
+      `/issues/mine${toQueryString({ ...params })}`,
+    );
+  },
+
+  create(input: CreateIssueInput): Promise<ApiEnvelope<PublicIssueDetailDto>> {
+    return apiClient.post<PublicIssueDetailDto>('/issues', input);
+  },
+
+  meToo(
+    publicIdOrCode: string,
+    input: MeTooIssueInput = {},
+  ): Promise<ApiEnvelope<PublicIssueDetailDto>> {
+    return apiClient.post<PublicIssueDetailDto>(
+      `/issues/${encodeURIComponent(publicIdOrCode)}/me-too`,
+      input,
     );
   },
 };
