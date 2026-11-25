@@ -4,11 +4,12 @@ import type {
   BackendPriority,
   BackendRoleName,
   BackendVerificationOutcome,
+  BackendWorkflowStage,
 } from '@/contracts/api.types';
 
 /**
  * Type aliases matching the standalone UI (`example/NaiSee/cham-pho/src/types/incident.ts`)
- * plus UX alignment from docs/phan_tich_de_bai_2.md (`rejected`, 3-choice verification outcome).
+ * plus UX alignment from docs/yeu_cau_tu_frontend.md (`status` + `stage`, `publicReview`).
  */
 export type UiUserRole = 'citizen' | 'volunteer' | 'officer' | 'admin';
 export type UiIncidentCategory = 'waste' | 'streetlight' | 'flooding' | 'road';
@@ -17,13 +18,29 @@ export type UiIncidentStatus =
   | 'verifying'
   | 'in_progress'
   | 'resolved'
-  | 'reopened'
-  | 'rejected';
+  | 'reopened';
+export type UiWorkflowStage = BackendWorkflowStage;
 export type UiIncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type UiVerificationOutcome =
   | 'still_exists'
   | 'already_resolved'
   | 'not_found_or_unclear';
+
+export const STAGE_LABEL_VI: Record<UiWorkflowStage, string> = {
+  unassigned: 'Chờ tiếp nhận',
+  received: 'Đã tiếp nhận',
+  needs_information: 'Cần bổ sung thông tin',
+  not_accepted: 'Không tiếp nhận',
+  verification_requested: 'Đang xác minh',
+  volunteer_assigned: 'Đang xác minh',
+  verification_submitted: 'Đang xác minh',
+  department_assigned: 'Đã phân công',
+  work_accepted: 'Đang xử lý',
+  resolution_submitted: 'Chờ duyệt kết quả',
+  resolution_review: 'Chờ duyệt kết quả',
+  completed: 'Đã xử lý',
+  reopened: 'Đang xử lý',
+};
 
 const ROLE_BE_TO_UI: Record<BackendRoleName, UiUserRole> = {
   CITIZEN: 'citizen',
@@ -107,9 +124,13 @@ export function toBackendCategory(
 export function toUiStatus(
   status: BackendIssueStatus,
   needsReopenReview = false,
+  stage?: BackendWorkflowStage,
 ): UiIncidentStatus {
-  if (needsReopenReview && status === 'RESOLVED') {
+  if (stage === 'reopened' || (needsReopenReview && status === 'RESOLVED')) {
     return 'reopened';
+  }
+  if (stage === 'not_accepted' || status === 'REJECTED') {
+    return 'new';
   }
   switch (status) {
     case 'PENDING_REVIEW':
@@ -121,8 +142,6 @@ export function toUiStatus(
       return 'in_progress';
     case 'RESOLVED':
       return 'resolved';
-    case 'REJECTED':
-      return 'rejected';
   }
 }
 

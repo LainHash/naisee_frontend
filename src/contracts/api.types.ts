@@ -13,6 +13,21 @@ export type BackendIssueStatus =
   | 'RESOLVED'
   | 'REJECTED';
 
+export type BackendWorkflowStage =
+  | 'unassigned'
+  | 'received'
+  | 'needs_information'
+  | 'not_accepted'
+  | 'verification_requested'
+  | 'volunteer_assigned'
+  | 'verification_submitted'
+  | 'department_assigned'
+  | 'work_accepted'
+  | 'resolution_submitted'
+  | 'resolution_review'
+  | 'completed'
+  | 'reopened';
+
 export type BackendPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type BackendCategoryCode =

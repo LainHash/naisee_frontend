@@ -51,7 +51,11 @@ naisee_frontend/src/
 | Vai trò Cán bộ | `STAFF` | `'officer'` | `toUiRole` / `toBackendRole` |
 | Vai trò Dân / TNV | `CITIZEN`, `VOLUNTEER` | `'citizen'`, `'volunteer'` | `toUiRole` / `toBackendRole` |
 | Loại sự cố | `ROAD_SURFACE`, `STREET_LIGHT`, `WASTE`, `FLOODING`, `OTHER` | `'road'`, `'streetlight'`, `'waste'`, `'flooding'` | `toUiCategory` / `toBackendCategory` |
-| Trạng thái | `PENDING_REVIEW`, `RECEIVED`, `VERIFYING`, `IN_PROGRESS`, `RESOLVED`, `REJECTED` + `needsReopenReview` | `'new'`, `'verifying'`, `'in_progress'`, `'resolved'`, `'reopened'`, `'rejected'` | `toUiStatus(status, needsReopenReview)` |
+| Trạng thái tổng quát (`status`) | `PENDING_REVIEW`, `RECEIVED`, `VERIFYING`, `IN_PROGRESS`, `RESOLVED`, `REJECTED` + `needsReopenReview` | `'new'`, `'verifying'`, `'in_progress'`, `'resolved'`, `'reopened'` | `toUiStatus(status, needsReopenReview, stage)` |
+| Bước nghiệp vụ (`stage`) | 13 giá trị `WorkflowStage` (`unassigned` .. `completed`, `reopened`) | `stage` + `stageLabel` *(UI Phản ánh của tôi ưu tiên đọc `stage`)* | Giữ nguyên chuỗi `snake_case`, map nhãn qua `STAGE_LABEL_VI` |
+| Duyệt công khai (`publicReview`) | `publicReview: { verified, approvedAt }` + `isDuplicate` | Chỉ hiện công khai khi `verified: true`, `in_progress`/`resolved`, `!isDuplicate` | Backend tự lọc ở `/issues` & `/issues/nearby` *(trừ `?forDuplicateCheck=true`)* |
+| Lịch sử chuyển bước | `previousStage`, `newStage`, `timestamp` (kèm `fromStatus`, `toStatus`) | `auditLogs[]` | Map trong `mapPublicIssueToUiIncident` |
+| Đơn vị / Hạn / Ghi chú | `assignedUnit`, `deadlineAt` (`dueAt`), `intakeNote` | `assignedUnit`, `deadlineAt`, `intakeNote` | Trả trực tiếp từ Backend DTO |
 | Kết quả xác minh | `STILL_EXISTS`, `ALREADY_RESOLVED`, `NOT_FOUND_OR_UNCLEAR` | `'still_exists'`, `'already_resolved'`, `'not_found_or_unclear'` | `toUiVerificationOutcome` / `toBackendVerificationOutcome` *(không gộp `not_found_or_unclear` thành tin sai)* |
 | Mức độ | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` | `'low'`, `'medium'`, `'high'`, `'critical'` | `toUiSeverity` / `toBackendPriority` |
 | Định danh URL | `publicId` (UUID) & `code` (`HT-2026-001`) | `id` & `code` | Map `id: dto.publicId` |

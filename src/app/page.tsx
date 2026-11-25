@@ -93,6 +93,7 @@ export default function TestHarnessHomePage() {
   const [nearbyLat, setNearbyLat] = useState('10.9512');
   const [nearbyLng, setNearbyLng] = useState('106.8245');
   const [nearbyRadius, setNearbyRadius] = useState('500');
+  const [forDuplicateCheck, setForDuplicateCheck] = useState(false);
   const [listStatus, setListStatus] = useState<string>('');
   const [listSearch, setListSearch] = useState('');
   const [issueLookup, setIssueLookup] = useState('HT-2026-001');
@@ -482,6 +483,14 @@ export default function TestHarnessHomePage() {
             placeholder="Radius (m)"
             className="w-24 rounded border px-2 py-1 text-xs"
           />
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={forDuplicateCheck}
+              onChange={(e) => setForDuplicateCheck(e.target.checked)}
+            />
+            <span>forDuplicateCheck (R01)</span>
+          </label>
           <button
             type="button"
             disabled={loading}
@@ -491,6 +500,7 @@ export default function TestHarnessHomePage() {
                   lat: Number(nearbyLat),
                   lng: Number(nearbyLng),
                   radiusMeters: Number(nearbyRadius),
+                  forDuplicateCheck,
                 }),
               )
             }

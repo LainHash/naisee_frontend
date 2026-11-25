@@ -6,6 +6,7 @@ import type {
   BackendPriority,
   BackendRoleName,
   BackendTimelineAction,
+  BackendWorkflowStage,
 } from '@/contracts/api.types';
 import { apiClient } from '@/shared/api-client';
 
@@ -23,12 +24,18 @@ export interface IssueDepartmentSummaryDto {
   name: string;
 }
 
+export interface PublicReviewDto {
+  verified: boolean;
+  approvedAt: string | null;
+}
+
 export interface PublicIssueSummaryDto {
   publicId: string;
   code: string;
   title: string;
   description: string | null;
   status: BackendIssueStatus;
+  stage: BackendWorkflowStage;
   priority: BackendPriority;
   suggestedPriority: BackendPriority | null;
   latitude: number;
@@ -37,10 +44,14 @@ export interface PublicIssueSummaryDto {
   ward: string;
   thumbnailUrl: string | null;
   reportCount: number;
+  assignedUnit: string | null;
   dueAt: string | null;
+  deadlineAt: string | null;
   resolvedAt: string | null;
   isOverdue: boolean;
+  isDuplicate: boolean;
   needsReopenReview: boolean;
+  publicReview: PublicReviewDto;
   category: IssueCategorySummaryDto;
   assignedDepartment: IssueDepartmentSummaryDto | null;
   createdAt: string;
@@ -64,10 +75,13 @@ export interface IssueTimelineItemDto {
   actionType: BackendTimelineAction;
   fromStatus: BackendIssueStatus | null;
   toStatus: BackendIssueStatus | null;
+  previousStage: BackendWorkflowStage | null;
+  newStage: BackendWorkflowStage | null;
   content: string;
   actorRole: BackendRoleName | null;
   actorLabel: string;
   createdAt: string;
+  timestamp: string;
 }
 
 export interface PublicFeedbackItemDto {
@@ -88,6 +102,7 @@ export interface FeedbackSummaryDto {
 }
 
 export interface PublicIssueDetailDto extends PublicIssueSummaryDto {
+  intakeNote: string | null;
   resolutionNote: string | null;
   rejectionReason: string | null;
   aiSuggestedCategoryCode: string | null;
@@ -104,6 +119,7 @@ export interface NearbyIssuesParams {
   categoryPublicId?: string;
   categoryCode?: string;
   status?: BackendIssueStatus;
+  forDuplicateCheck?: boolean;
   limit?: number;
 }
 
@@ -156,4 +172,3 @@ export const issuesApi = {
     );
   },
 };
-
