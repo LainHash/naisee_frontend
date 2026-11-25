@@ -231,4 +231,14 @@ export const issuesApi = {
       input,
     );
   },
+
+  supplement(
+    publicIdOrCode: string,
+    content: string,
+  ): Promise<ApiEnvelope<PublicIssueDetailDto>> {
+    return apiClient.post<PublicIssueDetailDto>(
+      `/issues/${encodeURIComponent(publicIdOrCode)}/supplement`,
+      { content },
+    );
+  },
 };

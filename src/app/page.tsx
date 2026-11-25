@@ -12,6 +12,7 @@ import type {
   BackendCategoryCode,
   BackendIssueStatus,
   BackendMediaStage,
+  BackendPriority,
   BackendRoleName,
 } from '@/contracts/api.types';
 import { aiApi, type ClassifyImageResultDto } from '@/features/ai/api';
@@ -19,6 +20,7 @@ import { authApi, type AuthUserDto } from '@/features/auth/api';
 import { issuesApi, type MyIssueItemDto } from '@/features/issues/api';
 import { masterDataApi } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
+import { staffApi, type StaffIssueItemDto } from '@/features/staff/api';
 import {
   apiClient,
   getStoredToken,
@@ -108,6 +110,18 @@ export default function TestHarnessHomePage() {
   );
   const [meTooTarget, setMeTooTarget] = useState('HT-2026-001');
   const [myIssues, setMyIssues] = useState<MyIssueItemDto[]>([]);
+  const [staffStatusFilter, setStaffStatusFilter] = useState<string>('');
+  const [staffOverdueOnly, setStaffOverdueOnly] = useState(false);
+  const [staffIssues, setStaffIssues] = useState<StaffIssueItemDto[]>([]);
+  const [staffTargetId, setStaffTargetId] = useState('HT-2026-001');
+  const [staffPriority, setStaffPriority] = useState<BackendPriority>('HIGH');
+  const [staffIntakeNote, setStaffIntakeNote] = useState('');
+  const [staffRejectReason, setStaffRejectReason] = useState(
+    'Không thuộc phạm vi quản lý của phường',
+  );
+  const [staffDeptCode, setStaffDeptCode] = useState('ROAD_MAINTENANCE');
+  const [staffSlaHours, setStaffSlaHours] = useState('48');
+  const [staffMergeSources, setStaffMergeSources] = useState('');
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -245,6 +259,23 @@ export default function TestHarnessHomePage() {
       const res = await issuesApi.getMine({ page: 1, limit: 20 });
       if (res.success) {
         setMyIssues(res.data);
+      }
+      return res;
+    });
+  }
+
+  async function handleFetchStaffIssues() {
+    await runAction(async () => {
+      const res = await staffApi.listIssues({
+        page: 1,
+        limit: 20,
+        status: (staffStatusFilter || undefined) as
+          | BackendIssueStatus
+          | undefined,
+        overdue: staffOverdueOnly || undefined,
+      });
+      if (res.success) {
+        setStaffIssues(res.data);
       }
       return res;
     });
@@ -763,6 +794,226 @@ export default function TestHarnessHomePage() {
                     Ghi chú tiếp nhận: {item.intakeNote}
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Giai đoạn 8: Flow 3 — Staff Triage, Reject, Merge & Assign (R04) */}
+      <section className="mt-6 space-y-3 rounded border p-4">
+        <div className="font-semibold">
+          Giai đoạn 8 — Flow 3: Cán bộ Điều phối (Triage, Reject, Merge &amp;
+          Assign)
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={staffStatusFilter}
+            onChange={(e) => setStaffStatusFilter(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="PENDING_REVIEW">PENDING_REVIEW</option>
+            <option value="RECEIVED">RECEIVED</option>
+            <option value="VERIFYING">VERIFYING</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="REJECTED">REJECTED</option>
+          </select>
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="checkbox"
+              checked={staffOverdueOnly}
+              onChange={(e) => setStaffOverdueOnly(e.target.checked)}
+            />
+            <span>Quá hạn (overdue=true)</span>
+          </label>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleFetchStaffIssues}
+            className="rounded bg-black px-3 py-1 text-white disabled:opacity-50"
+          >
+            GET /staff/issues
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffTargetId}
+            onChange={(e) => setStaffTargetId(e.target.value)}
+            placeholder="Mã/publicId hồ sơ (VD: HT-2026-001)"
+            className="w-52 rounded border px-2 py-1 text-xs"
+          />
+          <select
+            value={staffPriority}
+            onChange={(e) =>
+              setStaffPriority(e.target.value as BackendPriority)
+            }
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
+          <input
+            value={staffIntakeNote}
+            onChange={(e) => setStaffIntakeNote(e.target.value)}
+            placeholder="Ghi chú tiếp nhận / yêu cầu bổ sung"
+            className="min-w-48 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.triage(staffTargetId, {
+                  priority: staffPriority,
+                  intakeNote: staffIntakeNote || undefined,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /triage (Tiếp nhận)
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.triage(staffTargetId, {
+                  needsInformation: true,
+                  intakeNote:
+                    staffIntakeNote || 'Vui lòng chụp rõ hơn vị trí sự cố.',
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            Yêu cầu bổ sung
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffRejectReason}
+            onChange={(e) => setStaffRejectReason(e.target.value)}
+            placeholder="Lý do từ chối"
+            className="min-w-56 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.reject(staffTargetId, {
+                  rejectionReason: staffRejectReason,
+                }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs text-red-600"
+          >
+            PATCH /reject
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.updatePublicReview(staffTargetId, { verified: true }),
+              )
+            }
+            className="rounded border px-2.5 py-1 text-xs"
+          >
+            PATCH /public-review (verified=true)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <select
+            value={staffDeptCode}
+            onChange={(e) => setStaffDeptCode(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="ROAD_MAINTENANCE">ROAD_MAINTENANCE</option>
+            <option value="LIGHTING">LIGHTING</option>
+            <option value="ENVIRONMENT">ENVIRONMENT</option>
+            <option value="DRAINAGE">DRAINAGE</option>
+          </select>
+          <input
+            value={staffSlaHours}
+            onChange={(e) => setStaffSlaHours(e.target.value)}
+            placeholder="SLA (giờ)"
+            className="w-24 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.assign(staffTargetId, {
+                  departmentCode: staffDeptCode,
+                  slaHours: Number(staffSlaHours) || 48,
+                  publicReviewVerified: true,
+                }),
+              )
+            }
+            className="rounded bg-black px-3 py-1 text-xs text-white disabled:opacity-50"
+          >
+            PATCH /assign (Giao bộ phận)
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <input
+            value={staffMergeSources}
+            onChange={(e) => setStaffMergeSources(e.target.value)}
+            placeholder="Các mã/UUID nguồn cần gộp (cách nhau dấu phẩy)"
+            className="min-w-64 flex-1 rounded border px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                staffApi.merge(staffTargetId, {
+                  sourceIssuePublicIds: staffMergeSources
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                }),
+              )
+            }
+            className="rounded border px-3 py-1 text-xs"
+          >
+            POST /merge (Gộp trùng)
+          </button>
+        </div>
+
+        {staffIssues.length > 0 && (
+          <div className="space-y-1 border-t pt-2 text-xs">
+            <div className="font-medium">
+              Danh sách điều phối ({staffIssues.length}):
+            </div>
+            {staffIssues.slice(0, 8).map((item) => (
+              <div
+                key={item.publicId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded bg-gray-50 p-2"
+              >
+                <div>
+                  <strong>{item.code}</strong> — {item.title} | {item.status} /{' '}
+                  {item.stage} | {item.priority} | {item.reportCount} lượt
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStaffTargetId(item.code)}
+                  className="rounded border px-2 py-0.5 text-[11px]"
+                >
+                  Chọn
+                </button>
               </div>
             ))}
           </div>

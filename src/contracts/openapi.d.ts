@@ -294,6 +294,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/issues/{publicId}/supplement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Người dân gửi thông tin bổ sung khi hồ sơ ở trạng thái needs_information */
+        post: operations["IssuesController_supplementIssue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Danh sách hồ sơ điều phối cho Cán bộ (lọc status, stage, priority, quá hạn, cần mở lại) */
+        get: operations["StaffIssuesController_findStaffList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chi tiết Case 360 cho Cán bộ theo publicId hoặc code (bao gồm hồ sơ chưa duyệt công khai) */
+        get: operations["StaffIssuesController_findStaffDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Tiếp nhận & phân loại (RECEIVED) hoặc yêu cầu người dân bổ sung thông tin (needs_information) */
+        patch: operations["StaffIssuesController_triageIssue"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Từ chối tiếp nhận phản ánh kèm lý do (REJECTED / not_accepted) */
+        patch: operations["StaffIssuesController_rejectIssue"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Giao bộ phận phụ trách và hạn xử lý (IN_PROGRESS / department_assigned hoặc work_accepted) */
+        patch: operations["StaffIssuesController_assignIssue"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/public-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Phê chuẩn hoặc gỡ trạng thái hiển thị công khai trên bản đồ */
+        patch: operations["StaffIssuesController_updatePublicReview"];
+        trace?: never;
+    };
+    "/api/v1/staff/issues/{publicId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gộp một hoặc nhiều hồ sơ trùng lặp vào hồ sơ chính (chuyển Report sang MERGED, gom Media, cộng reportCount) */
+        post: operations["StaffIssuesController_mergeIssues"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -569,6 +705,120 @@ export interface components {
             addressText?: string;
             /** @description Ảnh bổ sung (tùy chọn nếu người dân đã chụp ở Bước 1 trước khi chọn trùng) */
             imageUrls?: string[];
+        };
+        SupplementIssueDto: {
+            /** @description Thông tin người dân bổ sung theo yêu cầu của cán bộ */
+            content: string;
+        };
+        StaffIssueDetailDto: {
+            intakeNote: string | null;
+            resolutionNote: string | null;
+            rejectionReason: string | null;
+            aiSuggestedCategoryCode: string | null;
+            aiConfidence: number | null;
+            media: components["schemas"]["IssueMediaItemDto"][];
+            timeline: components["schemas"]["IssueTimelineItemDto"][];
+            feedbackSummary: components["schemas"]["FeedbackSummaryDto"];
+            publicId: string;
+            code: string;
+            title: string;
+            description: string | null;
+            /** @enum {string} */
+            status: "PENDING_REVIEW" | "RECEIVED" | "VERIFYING" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
+            /** @enum {string} */
+            stage: "unassigned" | "received" | "needs_information" | "not_accepted" | "verification_requested" | "volunteer_assigned" | "verification_submitted" | "department_assigned" | "work_accepted" | "resolution_submitted" | "resolution_review" | "completed" | "reopened";
+            /** @enum {string} */
+            priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @enum {string|null} */
+            suggestedPriority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | null;
+            latitude: number;
+            longitude: number;
+            addressText: string;
+            ward: string;
+            thumbnailUrl: string | null;
+            reportCount: number;
+            assignedUnit: string | null;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** Format: date-time */
+            deadlineAt: string | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            isOverdue: boolean;
+            isDuplicate: boolean;
+            needsReopenReview: boolean;
+            publicReview: components["schemas"]["PublicReviewDto"];
+            category: components["schemas"]["IssueCategorySummaryDto"];
+            assignedDepartment: components["schemas"]["IssueDepartmentSummaryDto"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            priorityReason: string | null;
+        };
+        TriageIssueDto: {
+            /**
+             * Format: uuid
+             * @description Cập nhật publicId danh mục (tùy chọn)
+             */
+            categoryPublicId?: string;
+            /** @description Cập nhật mã danh mục (tùy chọn) */
+            categoryCode?: string;
+            /**
+             * @description Chốt mức ưu tiên (tùy chọn)
+             * @enum {string}
+             */
+            priority?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /** @description Bật true để chuyển sang bước yêu cầu người dân bổ sung thông tin */
+            needsInformation?: boolean;
+            /** @description Ghi chú tiếp nhận / nội dung yêu cầu bổ sung gửi người dân */
+            intakeNote?: string;
+        };
+        RejectIssueDto: {
+            /** @description Lý do không tiếp nhận hồ sơ */
+            rejectionReason: string;
+        };
+        AssignIssueDto: {
+            /**
+             * Format: uuid
+             * @description publicId bộ phận phụ trách
+             */
+            departmentPublicId?: string;
+            /** @description Mã bộ phận phụ trách (thay thế departmentPublicId) */
+            departmentCode?: string;
+            /**
+             * Format: date-time
+             * @description Hạn xử lý cụ thể (ISO date)
+             */
+            dueAt?: string;
+            /** @description Số giờ SLA tính từ hiện tại nếu không truyền dueAt */
+            slaHours?: number;
+            /**
+             * @description Chốt lại mức ưu tiên khi giao việc
+             * @enum {string}
+             */
+            priority?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+            /**
+             * @description Bước chi tiết sau khi giao (department_assigned hoặc work_accepted)
+             * @enum {string}
+             */
+            stage?: "department_assigned" | "work_accepted";
+            /** @description Ghi chú chỉ đạo của cán bộ */
+            note?: string;
+            /** @description Tùy chọn duyệt hiển thị công khai ngay khi giao xử lý */
+            publicReviewVerified?: boolean;
+        };
+        UpdatePublicReviewDto: {
+            /** @description Phê chuẩn (true) hoặc gỡ duyệt công khai (false) */
+            verified: boolean;
+            /** @description Ghi chú nội bộ khi duyệt công khai */
+            note?: string;
+        };
+        MergeIssuesDto: {
+            /** @description Danh sách publicId hoặc code các hồ sơ trùng cần gộp vào hồ sơ chính */
+            sourceIssuePublicIds: string[];
+            /** @description Ghi chú lý do gộp trùng */
+            note?: string;
         };
     };
     responses: never;
@@ -993,6 +1243,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicIssueDetailDto"];
+                };
+            };
+        };
+    };
+    IssuesController_supplementIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplementIssueDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_findStaffList: {
+        parameters: {
+            query: {
+                /** @description Lọc theo trạng thái tổng quát */
+                status?: "PENDING_REVIEW" | "RECEIVED" | "VERIFYING" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
+                /** @description Lọc theo bước nghiệp vụ chi tiết */
+                stage?: "unassigned" | "received" | "needs_information" | "not_accepted" | "verification_requested" | "volunteer_assigned" | "verification_submitted" | "department_assigned" | "work_accepted" | "resolution_submitted" | "resolution_review" | "completed" | "reopened";
+                /** @description Lọc theo mức độ ưu tiên */
+                priority?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+                /** @description Lọc theo publicId danh mục */
+                categoryPublicId?: string;
+                /** @description Lọc theo mã danh mục */
+                categoryCode?: string;
+                /** @description Lọc theo publicId bộ phận phụ trách */
+                departmentPublicId?: string;
+                /** @description Lọc theo id nội bộ hoặc publicId bộ phận phụ trách */
+                departmentId?: string;
+                /** @description Chỉ lấy các hồ sơ đang quá hạn */
+                overdue?: boolean;
+                /** @description Chỉ lấy các hồ sơ bị dân đánh giá chưa hài lòng cần xem xét mở lại */
+                needsReopenReview?: boolean;
+                /** @description Bao gồm cả hồ sơ đã đánh dấu trùng lặp */
+                includeDuplicates?: boolean;
+                /** @description Tìm kiếm theo mã hồ sơ, tiêu đề hoặc địa chỉ */
+                search?: string;
+                /** @description Page index starting from 1 */
+                page: number;
+                /** @description Number of items per page (1..100) */
+                limit: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StaffIssuesController_findStaffDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_triageIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriageIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_rejectIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_assignIssue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignIssueDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_updatePublicReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePublicReviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
+                };
+            };
+        };
+    };
+    StaffIssuesController_mergeIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publicId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIssuesDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffIssueDetailDto"];
                 };
             };
         };
