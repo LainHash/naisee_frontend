@@ -33,6 +33,8 @@ export interface QueryStaffIssuesParams {
   overdue?: boolean;
   needsReopenReview?: boolean;
   includeDuplicates?: boolean;
+  wardPublicId?: string;
+  ward?: string;
   search?: string;
 }
 

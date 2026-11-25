@@ -12,12 +12,18 @@ export interface DashboardCategoryMetricDto {
 }
 
 export interface DashboardWardMetricDto {
+  wardPublicId?: string | null;
+  code?: string | null;
   name: string;
   total: number;
   resolved: number;
+  pending: number;
+  overdue: number;
+  resolvedRate: number;
 }
 
 export interface DashboardMetricsDto {
+  wardFilter?: string | null;
   totalReports: number;
   totalIssues: number;
   resolvedCount: number;
@@ -30,16 +36,39 @@ export interface DashboardMetricsDto {
   byWard: DashboardWardMetricDto[];
 }
 
+export interface QueryDashboardParams {
+  wardPublicId?: string;
+  ward?: string;
+}
+
+function toQueryString(params: Record<string, unknown>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      qs.set(key, String(value));
+    }
+  }
+  const encoded = qs.toString();
+  return encoded ? `?${encoded}` : '';
+}
+
 /**
  * Headless Dashboard SDK matching naisee_backend DashboardController.
  */
 export const dashboardApi = {
-  getStaffDashboard(): Promise<ApiEnvelope<DashboardMetricsDto>> {
-    return apiClient.get<DashboardMetricsDto>('/staff/dashboard');
+  getStaffDashboard(
+    params: QueryDashboardParams = {},
+  ): Promise<ApiEnvelope<DashboardMetricsDto>> {
+    return apiClient.get<DashboardMetricsDto>(
+      `/staff/dashboard${toQueryString({ ...params })}`,
+    );
   },
 
-  getPublicDashboard(): Promise<ApiEnvelope<DashboardMetricsDto>> {
-    return apiClient.get<DashboardMetricsDto>('/dashboard/public');
+  getPublicDashboard(
+    params: QueryDashboardParams = {},
+  ): Promise<ApiEnvelope<DashboardMetricsDto>> {
+    return apiClient.get<DashboardMetricsDto>(
+      `/dashboard/public${toQueryString({ ...params })}`,
+    );
   },
 };
-

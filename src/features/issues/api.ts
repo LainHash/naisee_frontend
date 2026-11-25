@@ -44,6 +44,7 @@ export interface PublicIssueSummaryDto {
   longitude: number;
   addressText: string;
   ward: string;
+  wardPublicId?: string | null;
   thumbnailUrl: string | null;
   reportCount: number;
   assignedUnit: string | null;
@@ -140,6 +141,29 @@ export interface PublicIssueDetailDto extends PublicIssueSummaryDto {
   feedbackSummary: FeedbackSummaryDto;
 }
 
+export interface MapIssuePointDto {
+  publicId: string;
+  code: string;
+  title: string;
+  status: BackendIssueStatus;
+  stage: BackendWorkflowStage;
+  priority: BackendPriority;
+  latitude: number;
+  longitude: number;
+  addressText: string;
+  ward: string;
+  wardPublicId?: string | null;
+  reportCount: number;
+  categoryCode: string;
+  categoryName: string;
+  updatedAt: string;
+}
+
+export interface MapPointsResponseDto {
+  total: number;
+  points: MapIssuePointDto[];
+}
+
 export interface NearbyIssuesParams {
   lat: number;
   lng: number;
@@ -147,6 +171,8 @@ export interface NearbyIssuesParams {
   categoryPublicId?: string;
   categoryCode?: string;
   status?: BackendIssueStatus;
+  wardPublicId?: string;
+  ward?: string;
   forDuplicateCheck?: boolean;
   limit?: number;
 }
@@ -157,8 +183,20 @@ export interface QueryIssuesParams {
   categoryPublicId?: string;
   categoryCode?: string;
   status?: BackendIssueStatus;
+  wardPublicId?: string;
   ward?: string;
   search?: string;
+}
+
+export interface QueryMapPointsParams {
+  categoryPublicId?: string;
+  categoryCode?: string;
+  status?: BackendIssueStatus;
+  wardPublicId?: string;
+  ward?: string;
+  search?: string;
+  bbox?: string;
+  limit?: number;
 }
 
 export interface QueryMyIssuesParams {
@@ -176,6 +214,7 @@ export interface CreateIssueInput {
   latitude: number;
   longitude: number;
   addressText: string;
+  wardPublicId?: string;
   ward?: string;
   imageUrls: string[];
   aiSuggestedCategoryPublicId?: string;
@@ -211,6 +250,14 @@ export const issuesApi = {
   ): Promise<ApiEnvelope<NearbyIssueItemDto[]>> {
     return apiClient.get<NearbyIssueItemDto[]>(
       `/issues/nearby${toQueryString({ ...params })}`,
+    );
+  },
+
+  getMapPoints(
+    params: QueryMapPointsParams = {},
+  ): Promise<ApiEnvelope<MapPointsResponseDto>> {
+    return apiClient.get<MapPointsResponseDto>(
+      `/issues/map-points${toQueryString({ ...params })}`,
     );
   },
 

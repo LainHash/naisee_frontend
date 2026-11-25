@@ -68,6 +68,8 @@ export type BackendFeedbackReviewStatus =
   | 'ACKNOWLEDGED'
   | 'REOPENED';
 
+export type BackendAdministrativeUnitType = 'WARD' | 'COMMUNE';
+
 export interface PaginationMeta {
   page: number;
   limit: number;

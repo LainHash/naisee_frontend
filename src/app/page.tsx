@@ -20,7 +20,7 @@ import { authApi, type AuthUserDto } from '@/features/auth/api';
 import { dashboardApi } from '@/features/dashboard/api';
 import { feedbackApi } from '@/features/feedback/api';
 import { issuesApi, type MyIssueItemDto } from '@/features/issues/api';
-import { masterDataApi } from '@/features/master-data/api';
+import { masterDataApi, type WardDto } from '@/features/master-data/api';
 import { mediaApi } from '@/features/media/api';
 import { staffApi, type StaffIssueItemDto } from '@/features/staff/api';
 import {
@@ -153,6 +153,8 @@ export default function TestHarnessHomePage() {
   const [feedbackReason, setFeedbackReason] = useState(
     'Sau xử lý vẫn còn đọng nước khi mưa lớn',
   );
+  const [wards, setWards] = useState<WardDto[]>([]);
+  const [selectedWardPublicId, setSelectedWardPublicId] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const hasToken = useSyncExternalStore(
@@ -262,6 +264,28 @@ export default function TestHarnessHomePage() {
     });
   }
 
+  async function handleLoadWards() {
+    await runAction(async () => {
+      const res = await masterDataApi.getWards();
+      if (res.success) {
+        setWards(res.data);
+      }
+      return res;
+    });
+  }
+
+  function handleSelectWard(wardPublicId: string) {
+    setSelectedWardPublicId(wardPublicId);
+    const chosen = wards.find((w) => w.publicId === wardPublicId);
+    if (chosen) {
+      setNearbyLat(String(chosen.centerLat));
+      setNearbyLng(String(chosen.centerLng));
+      setCreateLat(String(chosen.centerLat));
+      setCreateLng(String(chosen.centerLng));
+      setCreateAddress(`Khu vực trung tâm ${chosen.name}, ${chosen.provinceName}`);
+    }
+  }
+
   async function handleCreateIssue(e: React.FormEvent) {
     e.preventDefault();
     const imageUrl = uploadedUrl ?? aiImageUrl;
@@ -273,6 +297,7 @@ export default function TestHarnessHomePage() {
         latitude: Number(createLat),
         longitude: Number(createLng),
         addressText: createAddress,
+        wardPublicId: selectedWardPublicId || undefined,
         imageUrls: [imageUrl],
         ...(aiResult
           ? {
@@ -313,6 +338,7 @@ export default function TestHarnessHomePage() {
         status: (staffStatusFilter || undefined) as
           | BackendIssueStatus
           | undefined,
+        wardPublicId: selectedWardPublicId || undefined,
         overdue: staffOverdueOnly || undefined,
       });
       if (res.success) {
@@ -478,7 +504,49 @@ export default function TestHarnessHomePage() {
             >
               GET /departments (STAFF)
             </button>
+            <button
+              type="button"
+              onClick={handleLoadWards}
+              disabled={loading}
+              className="rounded border px-3 py-1"
+            >
+              GET /wards (Đồng Nai)
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                runAction(() =>
+                  masterDataApi.resolveWard(
+                    Number(createLat),
+                    Number(createLng),
+                  ),
+                )
+              }
+              disabled={loading}
+              className="rounded border px-3 py-1"
+            >
+              GET /wards/resolve
+            </button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+          <label className="text-xs font-medium" htmlFor="ward-filter-select">
+            Phường đang chọn (lọc &amp; nạp tọa độ tâm):
+          </label>
+          <select
+            id="ward-filter-select"
+            value={selectedWardPublicId}
+            onChange={(e) => handleSelectWard(e.target.value)}
+            className="rounded border px-2 py-1 text-xs"
+          >
+            <option value="">Toàn tỉnh Đồng Nai (không lọc)</option>
+            {wards.map((ward) => (
+              <option key={ward.publicId} value={ward.publicId}>
+                {ward.name} ({ward.code})
+              </option>
+            ))}
+          </select>
         </div>
 
         <form
@@ -667,6 +735,7 @@ export default function TestHarnessHomePage() {
                   status: (listStatus || undefined) as
                     | BackendIssueStatus
                     | undefined,
+                  wardPublicId: selectedWardPublicId || undefined,
                   search: listSearch || undefined,
                 }),
               )
@@ -674,6 +743,25 @@ export default function TestHarnessHomePage() {
             className="rounded border px-3 py-1"
           >
             GET /issues
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() =>
+              runAction(() =>
+                issuesApi.getMapPoints({
+                  status: (listStatus || undefined) as
+                    | BackendIssueStatus
+                    | undefined,
+                  wardPublicId: selectedWardPublicId || undefined,
+                  search: listSearch || undefined,
+                  limit: 5000,
+                }),
+              )
+            }
+            className="rounded border px-3 py-1"
+          >
+            GET /issues/map-points
           </button>
         </div>
 
@@ -1106,7 +1194,9 @@ export default function TestHarnessHomePage() {
             disabled={loading}
             onClick={() =>
               runAction(async () => {
-                const res = await verificationsApi.listVolunteerTasks();
+                const res = await verificationsApi.listVolunteerTasks({
+                  wardPublicId: selectedWardPublicId || undefined,
+                });
                 if (res.success) {
                   setVolunteerTasks(res.data);
                   if (!verifyTargetId && res.data[0]) {
@@ -1264,7 +1354,13 @@ export default function TestHarnessHomePage() {
           <button
             type="button"
             disabled={loading}
-            onClick={() => runAction(() => dashboardApi.getStaffDashboard())}
+            onClick={() =>
+              runAction(() =>
+                dashboardApi.getStaffDashboard({
+                  wardPublicId: selectedWardPublicId || undefined,
+                }),
+              )
+            }
             className="rounded border px-3 py-1 text-xs"
           >
             GET /staff/dashboard
@@ -1272,7 +1368,13 @@ export default function TestHarnessHomePage() {
           <button
             type="button"
             disabled={loading}
-            onClick={() => runAction(() => dashboardApi.getPublicDashboard())}
+            onClick={() =>
+              runAction(() =>
+                dashboardApi.getPublicDashboard({
+                  wardPublicId: selectedWardPublicId || undefined,
+                }),
+              )
+            }
             className="rounded border px-3 py-1 text-xs"
           >
             GET /dashboard/public

@@ -75,6 +75,7 @@ export interface UiIncident {
   lng: number;
   address: string;
   neighborhood: string;
+  wardPublicId?: string;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;
@@ -145,6 +146,7 @@ export function mapPublicIssueToUiIncident(
     lng: dto.longitude,
     address: dto.addressText,
     neighborhood: dto.ward,
+    wardPublicId: dto.wardPublicId ?? undefined,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     resolvedAt: dto.resolvedAt ?? undefined,

@@ -21,6 +21,7 @@ export interface VerificationIssueSummaryDto {
   longitude: number;
   addressText: string;
   ward: string;
+  wardPublicId?: string | null;
   thumbnailUrl: string | null;
   reportCount: number;
   dueAt: string | null;
@@ -51,6 +52,7 @@ export interface VerificationTaskDto {
   volunteerName: string | null;
   media: IssueMediaItemDto[];
   issue: VerificationIssueSummaryDto;
+  distanceMeters?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +68,11 @@ export interface QueryVolunteerVerificationsParams {
   limit?: number;
   status?: BackendVerificationStatus;
   mine?: boolean;
+  wardPublicId?: string;
+  ward?: string;
+  lat?: number;
+  lng?: number;
+  radiusMeters?: number;
   search?: string;
 }
 
